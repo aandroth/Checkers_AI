@@ -44,7 +44,7 @@ void assignTables();
 //functions to drive the moves
 float ourMoveDriver(int CUR_PLY, float CUR_MIN, int board[]);
 float ourJumpRecurse(int square, float CUR_MIN, int CUR_PLY, int board[]);
-float ourMoveRecurse(int square, float CUR_MIN, int CUR_PLY, int board[]);
+vector<int> redMove(MoveResultArray *, vector<int>, int);
 
 
 //functions to change the board for each jump
@@ -153,40 +153,41 @@ int main()
 
 		*/
 
-		vector<int> pieceMoves;
-		pieceMoves = pieceArray[0]->evaluateMoves();
-		for (int ii = 0; ii < pieceMoves.size(); ++ii)
+		for (int cc = 0; cc < 32; ++cc)
 		{
-			tempBoard = board;
-			if (pieceMoves[ii] != -1 && tempBoard[pieceMoves[ii]] == 0)
+			if (board[cc] > 0)
 			{
-				tempBoard[pieceArray[0]->m_position] = 0;
-				tempBoard[pieceMoves[ii]] = pieceArray[0]->m_value;
-				
-				if (pieceArray[0]->m_value == 1 && pieceMoves[ii] > 27)
+				vector<int> pieceMoves;
+				pieceMoves = redMove(_moveResultsArray, board, cc);
+				for (int ii = 0; ii < pieceMoves.size(); ++ii)
 				{
-					tempBoard[pieceMoves[ii]] = 2;
-					cout << pieceArray[0]->m_value << endl;
-				}
+					tempBoard = board;
 
-				// Get the value from the BEF
-				int val = std::rand() % 20 - 10;
-				cout << "val is " << val << endl;
-				// Compare value to current max
-				if (currMax < val)
-				{
-					currMax = val;
-					savedBoards.push_back(tempBoard);
-					bestBoardIndex = savedBoards.size() - 1;
-					pieceMovedIndex = 0;
-					movedToPosition = pieceMoves[ii];
+					tempBoard[pieceMoves[ii]] = tempBoard[cc];
+					tempBoard[cc] = 0;
+
+					if (tempBoard[pieceMoves[ii]] == 1 && pieceMoves[ii] > 27)
+					{
+						cout << pieceMoves[ii] << endl;
+						tempBoard[pieceMoves[ii]] = 2;
+					}
+
+					// Get the value from the BEF
+					int val = std::rand() % 20 - 10;
+					cout << "val is " << val << endl;
+					// Compare value to current max
+					if (currMax < val)
+					{
+						currMax = val;
+						savedBoards.push_back(tempBoard);
+						bestBoardIndex = savedBoards.size() - 1;
+					}
+					cout << "max is " << currMax << endl;
 				}
-				cout << "max is " << currMax << endl;
 			}
 		}
 
-		board = savedBoards[bestBoardIndex]; 
-		pieceArray[pieceMovedIndex]->setPosition(movedToPosition);
+		board = savedBoards[bestBoardIndex];
 
 		/*
 		//switch the board so the other NN can make a move
@@ -224,217 +225,7 @@ int main()
 }
 
 
-//ourMoveDriver
-//
-//Function looks through the board for our pieces and tests each jump and then move they can do
-//
-//Pre:	A ready board and the current ply
-//Post: Looks through the board for our pieces and sees if any of them can do a jump,
-//		if no jumps can be done the driver looks through the board for our pieces and see if they can do a move
-//
-float ourMoveDriver(int CUR_PLY, float CUR_MIN, int * board)
-{
-	if(CUR_PLY == MAX_PLY)
-	{
-		if(turn%2 != 0)
-		{	
-			return NN_R.computeBoardScore(board);
-		}
-		else
-		{	
-			return NN_W.computeBoardScore(board);
-		}
-	}
-
-	float CUR_MAX = -900.0;
-	float TEMP_MAX;
-
-	//search through the board for our pieces
-	for(int ii = 0; ii < 32; ++ii)
-	{
-		//check if the square holds one of our pieces
-		if(board[ii] > 0)
-		{
-			//check if the piece can do a jump
-			TEMP_MAX = ourJumpRecurse(ii, CUR_MIN, CUR_PLY, board);
-
-			//check the results for a new max
-			if(TEMP_MAX > CUR_MAX)
-			{
-				CUR_MAX = TEMP_MAX;
-			}
-		}
-	}
-
-	//if no jumps were done
-	if(CUR_MAX == -900.0)
-	{
-		//look through the board for our pieces
-		for(int ii = 0; ii < 32; ++ii)
-		{
-
-			//check if the sqaure holds one of our pieces
-			if(board[ii] > 0)
-			{
-				//check if the piece can do a move
-				//TEMP_MAX = ourMoveRecurse(ii, CUR_MIN, CUR_PLY, board);
-
-				//check the results for a new max
-				if(TEMP_MAX > CUR_MAX)
-				{
-					CUR_MAX = TEMP_MAX;
-				}
-			}
-		}
-	}
-	//red has no available moves, meaning either a loss or a draw
-	if(CUR_MAX == -900)
-	{
-		for(int ii = 0; ii < 32; ii++)
-		{
-			if(board[ii] > 0)
-			{return CUR_MAX;}
-		}
-		//if no red pieces remain on the board than white has won
-		return -1000;
-	}
-	return CUR_MAX;
-}
-
-
-//ourJumpRecurse
-//
-//Function that will take a piece on the board and continue its jumps by testing for every possible jump from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can jump,
-//		if no jumps can be done it returns -900.0 to ourMoveDriver to report no jumps,
-//		if a jump can be made the jump function is called
-//
-float ourJumpRecurse(int ii, float CUR_MIN, int CUR_PLY, int * board)
-{
-	float CUR_MAX = -900.0;
-	float TEMP_MAX = -900.0;
-	/*
-	//check to see if the square has one of our kings
-	if(board[ii] > 1) 
-	{
-		//Jump down to the left
-		//check if the left square we can jump to exists and has an enemy piece 
-		if(movesDown[ii].left != -1 && board[movesDown[ii].left] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsDown[ii].left != -1 && board[jumpsDown[ii].left] == 0)
-			{
-				//fill our variables for the jump
-				jumpFrom = ii;
-				jumpOver = movesDown[ii].left;
-				jumpTo = jumpsDown[ii].left;
-
-				//jump down to the left
-				TEMP_MAX = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MAX, board);
-
-				//check if this is the best board of the current ply
-				if(TEMP_MAX > CUR_MAX)
-				{
-					CUR_MAX = TEMP_MAX;
-				}
-			}
-		}
-
-		//check for alpha-beta pruning	
-		if(CUR_MAX >= CUR_MIN)
-		{
-			return CUR_MAX;
-		}
-
-		//Jump down to the right
-		//check if the right square we can jump to exists and has an enemy piece 
-		if(movesDown[ii].right != -1 && board[movesDown[ii].right] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsDown[ii].right != -1 && board[jumpsDown[ii].right] == 0)
-			{
-				//fill our variables for the jump
-				jumpFrom = ii;
-				jumpOver = movesDown[ii].right;
-				jumpTo = jumpsDown[ii].right;
-
-				//jump down to the right
-				TEMP_MAX = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MAX, board);
-
-				//check if this is the best board of the current ply
-				if(TEMP_MAX > CUR_MAX)
-				{
-					CUR_MAX = TEMP_MAX;
-				}
-			}
-		}
-	}
-
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MAX;
-	}
-
-	//Jump up to the left
-	//check if the left square we can jump to exists and has an enemy piece 
-	if(movesUp[ii].left != -1 && board[movesUp[ii].left] < 0)
-	{
-		//check to make sure that the square beyond the piece exists and that that square is empty
-		if(jumpsUp[ii].left != -1 && board[jumpsUp[ii].left] == 0)
-		{
-
-			//fill our variables for the jump
-			jumpFrom = ii;
-			jumpOver = movesUp[ii].left;
-			jumpTo = jumpsUp[ii].left;
-
-			//jump up to the left
-			TEMP_MAX = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MAX, board);
-
-			//check if this is the best board of the current ply
-			if(TEMP_MAX > CUR_MAX)
-			{
-				CUR_MAX = TEMP_MAX;
-			}
-		}
-	}
-
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MAX;
-	}
-
-	//Jump up to the right
-	//check if the right square we can jump to exists and has an enemy piece 
-	if(movesUp[ii].right != -1 && board[movesUp[ii].right] < 0)
-	{
-		//check to make sure that the square beyond the piece exists and that that square is empty
-		if(jumpsUp[ii].right != -1 && board[jumpsUp[ii].right] == 0)
-		{
-			//fill our variables for the jump
-			jumpFrom = ii;
-			jumpOver = movesUp[ii].right;
-			jumpTo = jumpsUp[ii].right;
-
-			//jump up to the left
-			TEMP_MAX = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MAX, board);
-
-			//check if this is the best board of the current ply
-			if(TEMP_MAX > CUR_MAX)
-			{
-				CUR_MAX = TEMP_MAX;
-			}
-		}
-	}
-	return CUR_MAX;
-}
-
-
-//ourMoveRecurse
+//redMove
 //
 //Function that will take a piece on the board and test for every possible move from its current position
 //
@@ -443,540 +234,35 @@ float ourJumpRecurse(int ii, float CUR_MIN, int CUR_PLY, int * board)
 //		if no moves can be done it returns -900.0 to ourMoveDriver to report no moves,
 //		if a move can be made the move function is called
 //
-float ourMoveRecurse(int ii, float CUR_MIN, int CUR_PLY, int * board)
+vector<int> redMove(MoveResultArray * _moveResultArray, vector<int> board, int index)
 {
-	float CUR_MAX = -900.0;
-	float TEMP_MAX;
+	vector<int> tempVec;
 
-	if(board[ii] > 1)
+	int tempInt = _moveResultArray->movesDown[index].left;
+	if (tempInt != -1 && board[tempInt] == 0)
 	{
-
-		//Move down to the left
-		//Check that the square on the left exists and is empty
-		if(movesDown[ii].left != -1 && board[movesDown[ii].left] == 0)
-		{
-			moveFrom = ii; 
-			moveTo = movesDown[ii].left;
-
-			//call the move function to change the board
-			TEMP_MAX = move(moveFrom, moveTo, CUR_PLY, CUR_MAX, board);
-
-			if(TEMP_MAX > CUR_MAX)
-			{
-				CUR_MAX = TEMP_MAX;
-			}
-		}
-
-		//check for alpha-beta pruning	
-		if(CUR_MAX >= CUR_MIN)
-		{
-			return CUR_MAX;
-		}
-
-		//Move down to the right
-		//check that the square to the right exists and is empty
-		if(movesDown[ii].right != -1 && board[movesDown[ii].right] == 0)
-		{
-			moveFrom = ii; 
-			moveTo = movesDown[ii].right;
-
-			//call the move function to change the board
-			TEMP_MAX = move(moveFrom, moveTo, CUR_PLY, CUR_MAX, board);
-
-			if(TEMP_MAX > CUR_MAX)
-			{
-				CUR_MAX = TEMP_MAX;
-			}
-		}
+		tempVec.push_back(tempInt);
 	}
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
+	tempInt = _moveResultArray->movesDown[index].right;
+	if (tempInt != -1 && board[tempInt] == 0)
 	{
-		return CUR_MAX;
+		tempVec.push_back(tempInt);
 	}
-
-	//Move up to the left
-	//check that the square on the left exists and is empty
-	if(movesUp[ii].left != -1 && board[movesUp[ii].left] == 0)
+	if (board[index] > 1)
 	{
-		moveFrom = ii; 
-		moveTo = movesUp[ii].left;
-
-		//call the move function to change the board
-		TEMP_MAX = move(moveFrom, moveTo, CUR_PLY, CUR_MAX, board);
-
-		if(TEMP_MAX > CUR_MAX)
+		tempInt = _moveResultArray->movesUp[index].left;
+		if (tempInt != -1 && board[tempInt] == 0)
 		{
-			CUR_MAX = TEMP_MAX;
+			tempVec.push_back(tempInt);
+		}
+		tempInt = _moveResultArray->movesUp[index].right;
+		if (tempInt != -1 && board[tempInt] == 0)
+		{
+			tempVec.push_back(tempInt);
 		}
 	}
 
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MAX;
-	}
-
-	//Move up to the right
-	//check that the square to the right exists and is empty
-	if(movesUp[ii].right != -1 && board[movesUp[ii].right] == 0)
-	{
-		moveFrom = ii; 
-		moveTo = movesUp[ii].right;
-
-		//call the move function to change the board
-		TEMP_MAX = move(moveFrom, moveTo, CUR_PLY, CUR_MAX, board);
-
-		if(TEMP_MAX > CUR_MAX)
-		{
-			CUR_MAX = TEMP_MAX;
-		}
-	}*/
-	return CUR_MAX;
-}
-
-
-//jump
-//
-//Function changes the board for a piece that does a jump
-//
-//Pre:	The square where the piece starts, the square the piece is jumping over, the square the piece is moving to,
-//		a ready board, and the current ply
-//Post: Copies the board and changes the copy, which is then saved to tempBoard if this is the top ply, 
-//		sends the board to the other team's move driver
-//
-float jump(int jumpFrom, int jumpOver, int jumpTo, int CUR_PLY, float CUR_VAL, int board[])
-{
-	float RET_VAL;
-	int arr[32];
-
-	//copy the values from the board to the board copy
-	for(int ii = 0; ii<32; ii++)
-	{
-		arr[ii] = board[ii];
-	}
-
-	//move the piece to its new square on the arr
-	arr[jumpTo] = arr[jumpFrom];
-
-	//empty the old square and the enemy that was jumped
-	arr[jumpFrom] = 0;
-	arr[jumpOver] = 0;
-//
-//////////////////////////////////////testing code
-//	cout<<"JUMPING ";
-//	squareDisplay(jumpTo, arr);
-//	cout<<", which has a value of "<<arr[jumpTo]<<",";
-//	cout<<" from " <<jumpFrom<<" to "<<jumpTo<<" on PLY "<<CUR_PLY<<"!\n";
-//	boardDisplay(arr);
-//////////////////////////////////////testing code
-
-	//call our recursive jump function if a red piece just did a jump
-	if(arr[jumpTo] > 0)
-	{		
-		RET_VAL = ourJumpRecurse(jumpTo, CUR_VAL, CUR_PLY, arr);
-	}
-	//call the enemy recursive jump function if a white piece just did a jump
-	else
-	{		
-		RET_VAL = enemyJumpRecurse(jumpTo, CUR_VAL, CUR_PLY, arr);
-	}
-
-	//if this was our  move and we can't do any more jumps
-	if(RET_VAL == -900.0)
-	{
-		//test the piece that jumped last to see if it will become a king
-		if(jumpTo < 4 && arr[jumpTo] < 2)
-		{arr[jumpTo] = 2;}
-
-		//save the board if this is the top ply
-		if(CUR_PLY == 1)
-		{
-			for(int ii = 0; ii < 32;ii++)
-				tempBoard[ii] = arr[ii];
-		}
-
-		RET_VAL = enemyMoveDriver(CUR_PLY+1, CUR_VAL, arr);
-	}
-
-	//if this was the enemy move and they can't do any more jumps
-	else if(RET_VAL == 900.0)
-	{
-		//test the piece that jumped last to see if it will become a king
-		if(jumpTo > 27 && arr[jumpTo] > -2)
-		{arr[jumpTo] = -2;}
-
-		RET_VAL = ourMoveDriver(CUR_PLY+1, CUR_VAL, arr);
-	}
-
-	return RET_VAL;
-}
-
-//move
-//
-//Function changes the board for a piece that moves
-//
-//Pre:	The square where the piece starts, the square the piece is moving to, a ready board and the current ply
-//Post: Copies the board and changes the copy, which is then saved to tempBoard if this is the top ply, 
-//		sends the board to the other team's move driver
-//
-float move(int moveFrom, int moveTo, int CUR_PLY, float CUR_VAL, int board[])
-{
-	float RET_VAL;
-	int arr[32];
-
-	//copy the values from the board to the board copy
-	for(int ii = 0; ii<32; ii++)
-	{
-		arr[ii] = board[ii];
-	}
-
-	//move the piece to its new square on the board
-	arr[moveTo] = arr[moveFrom];
-
-	//empty the old square
-	arr[moveFrom] = 0;
-	
-//////////////////////////////////////testing code
-//	cout<<"MOVING ";
-//	squareDisplay(0, moveTo, arr);
-//	cout<<", which has a value of "<<arr[moveTo]<<",";
-//	cout<<" from " <<moveFrom<<" to "<<moveTo<<" on PLY "<<CUR_PLY<<"!\n";
-//	boardDisplay(0, arr);
-////////////////////////////////////testing code
-
-	//This if and else statement check if the current ply is odd (our move) or even (enemy move)
- 	//If it is currently our move, call the enemy move driver
-	if(CUR_PLY%2 != 0)
-	{
-		//test the piece that just moved to see if it will become a king
-		if(moveTo < 4 && arr[moveTo] < 2)
-		{arr[moveTo] = 2;}
-
-		//call the enemy driver function
-		RET_VAL = enemyMoveDriver(CUR_PLY+1, CUR_VAL, arr);
-	}
-	//If it is currently the enemy's move, call our move driver
-	else
-	{
-		//test the piece that just moved to see if it will become a king
-		if(moveTo > 27 && arr[moveTo] > -2)
-		{arr[moveTo] = -2;}
-
-		//call our driver function
-		RET_VAL = ourMoveDriver(CUR_PLY+1, CUR_VAL, arr);
-	}
-
-	//if this is the top ply we may use this baord, so we save it
-	if(CUR_PLY == 1)
-	{
-		for(int ii = 0; ii < 32; ii++)
-			tempBoard[ii] = arr[ii];
-	}
-	return RET_VAL;
-}
-
-/////////////////////////////////////////
-/////////Enemy Evaluation Move Functions
-//////////////////////////////////////////
-//////////////////////////////////////////
-
-
-//enemyMoveDriver
-//
-//Function looks for through the board for our pieces and tests each jump and then move they can do
-//
-//Pre:	A ready board and the current ply
-//Post: Looks through the board for enemy pieces and sees if any of them can do a jump,
-//		if no jumps can be done the driver looks throught the board for enemy pieces and see if they can do a move
-//
-float enemyMoveDriver(int CUR_PLY, float CUR_MAX, int * board)
-{
-	float CUR_MIN = 900.0;
-	float TEMP_MIN;
-
-	//check the board for enemy pieces
-	for(int ii = 0; ii < 32; ++ii)
-	{
-		//check if the square has an enemy piece
-		if(board[ii] < 0)
-		{
-			//test if the piece can do a jump
-			TEMP_MIN = enemyJumpRecurse(ii, CUR_MAX, CUR_PLY, board);
-			if(TEMP_MIN < CUR_MIN)
-			{
-				CUR_MIN = TEMP_MIN;
-			}
-		}
-	}
-
-	//if no jump can be done, test if a piece can do a move
-	if(CUR_MIN == 900.0)
-	{
-		//check the board for enemy pieces
-		for(int ii = 0; ii < 32; ++ii)
-		{
-			//check if the square has an enemy piece
-			if(board[ii] < 0)
-			{
-				//test if the piece can do a move
-				TEMP_MIN = enemyMoveRecurse(ii, CUR_MAX, CUR_PLY, board);
-
-				if(TEMP_MIN < CUR_MIN)
-				{
-					CUR_MIN = TEMP_MIN;
-				}
-			}
-		}
-	}
-
-	//white has no available moves, meaning either a loss or a draw
-	if(CUR_MIN == 900)
-	{
-		//check for any remaining white pieces
-		for(int ii = 0; ii < 32; ii++)
-		{
-			if(board[ii] < 0)
-			{return CUR_MIN;}
-		}
-		//if no white pieces remain on the board than red has won
-		return 1000;
-	}
-	return CUR_MIN;
-}
-
-
-//enemyJumpRecurse
-//
-//Function that will take a piece on the board and continue its jumps by testing for every possible jump from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can jump,
-//		if no jumps can be done it returns 900.0 to ourMoveDriver to report no jumps,
-//		if a jump can be made the jump function is called
-//
-float enemyJumpRecurse(int ii, float CUR_MAX, int CUR_PLY, int * board)
-{
-	float CUR_MIN = 900.0;
-	float TEMP_MIN;
-	/*
-	//check to see if the square has one of enemy kings
-	if(board[ii] < -1) 
-	{
-		//Jump up to the left
-		//check if the left square we can jump to exists and has an enemy piece 
-		if(movesUp[ii].left != -1 && board[movesUp[ii].left] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsUp[ii].left != -1 && board[jumpsUp[ii].left] == 0)
-			{
-				//fill enemy variables for the jump
-				jumpFrom = ii;
-				jumpOver = movesUp[ii].left;
-				jumpTo = jumpsUp[ii].left;
-
-				//jump up to the left
-				TEMP_MIN = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MIN, board);
-
-				//check if this is the best board of the current ply
-				if(TEMP_MIN < CUR_MIN)
-				{
-					CUR_MIN = TEMP_MIN;
-				}
-			}
-		}
-
-		//check for alpha-beta pruning	
-		if(CUR_MAX >= CUR_MIN)
-		{
-			return CUR_MIN;
-		}
-
-		//Jump up to the right
-		//check if the right square we can jump to exists and has an enemy piece 
-		if(movesUp[ii].right != -1 && board[movesUp[ii].right] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsUp[ii].right != -1 && board[jumpsUp[ii].left] == 0)
-			{
-
-				//fill enemy variables for the jump
-				jumpFrom = ii;
-				jumpOver = movesUp[ii].right;
-				jumpTo = jumpsUp[ii].right;
-
-				//jump up to the left
-				TEMP_MIN = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MIN, board);
-
-				//check if this is the best board of the current ply
-				if(TEMP_MIN < CUR_MIN)
-				{
-					CUR_MIN = TEMP_MIN;
-				}
-			}
-		}
-	}
-
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MIN;
-	}
-
-		//Jump down to the left
-		//check if the left square we can jump to exists and has an enemy piece 
-		if(movesDown[ii].left != -1 && board[movesDown[ii].left] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsDown[ii].left != -1 && board[jumpsDown[ii].left] == 0)
-			{
-
-				//fill enemy variables for the jump
-				jumpFrom = ii;
-				jumpOver = movesDown[ii].left;
-				jumpTo = jumpsDown[ii].left;
-
-				//jump down to the left
-				TEMP_MIN = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MIN, board);
-				//check if this is the best board of the current ply
-				if(TEMP_MIN < CUR_MIN)
-				{
-					CUR_MIN = TEMP_MIN;
-				}
-			}
-		}
-
-		//check for alpha-beta pruning	
-		if(CUR_MAX >= CUR_MIN)
-		{
-			return CUR_MIN;
-		}
-
-		//Jump down to the right
-		//check if the right square we can jump to exists and has an enemy piece 
-		if(movesDown[ii].right != -1 && board[movesDown[ii].right] < 0)
-		{
-			//check to make sure that the square beyond the piece exists and that that square is empty
-			if(jumpsDown[ii].right != -1 && board[jumpsDown[ii].right] == 0)
-			{
-
-			//fill enemy variables for the jump
-			jumpFrom = ii;
-			jumpOver = movesDown[ii].right;
-			jumpTo = jumpsDown[ii].right;
-
-			//jump down to the right
-			TEMP_MIN = jump(jumpFrom, jumpOver, jumpTo, CUR_PLY, CUR_MIN, board);
-
-			//check if this is the best board of the current ply
-			if(TEMP_MIN < CUR_MIN)
-			{
-				CUR_MIN = TEMP_MIN;
-			}
-		}
-	}*/
-	return CUR_MIN;
-}
-
-//enemyMoveRecurse
-//
-//Function that will take a piece on the board and test for every possible move from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can move,
-//		if no moves can be done it returns 900.0 to ourMoveDriver to report no moves,
-//		if a move can be made the move function is called
-//
-float enemyMoveRecurse(int ii, float CUR_MAX, int CUR_PLY, int * board)
-{
-	float CUR_MIN = 900.0;
-	float TEMP_MIN;
-	/*
-	if(board[ii] < -1)
-	{
-		//Move up to the left
-		//check that the square on the left exists and is empty
-		if(movesUp[ii].left != -1 && board[movesUp[ii].left] == 0)
-		{
-			moveFrom = ii; 
-			moveTo = movesUp[ii].left;
-
-			//call the move function to change the board
-			TEMP_MIN = move(moveFrom, moveTo, CUR_PLY, CUR_MIN, board);
-
-			if(TEMP_MIN < CUR_MIN)
-			{
-				CUR_MIN = TEMP_MIN;
-			}
-		}
-			
-		//check for alpha-beta pruning	
-		if(CUR_MAX >= CUR_MIN)
-		{
-			return CUR_MIN;
-		}
-
-		//Move up to the right
-		//check that the square to the right exists and is empty
-		if(movesUp[ii].right != -1 && board[movesUp[ii].right] == 0)
-		{
-			moveFrom = ii; 
-			moveTo = movesUp[ii].right;
-
-			//call the move function to change the board
-			TEMP_MIN = move(moveFrom, moveTo, CUR_PLY, CUR_MIN, board);
-
-			if(TEMP_MIN < CUR_MIN)
-			{
-				CUR_MIN = TEMP_MIN;
-			}
-		}
-	}
-
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MIN;
-	}
-
-	//Move down to the left
-	//Check that the square on the left exists and is empty
-	if(movesDown[ii].left != -1 && board[movesDown[ii].left] == 0)
-	{
-		moveFrom = ii; 
-		moveTo = movesDown[ii].left;
-
-		//call the move function to change the board
-		TEMP_MIN = move(moveFrom, moveTo, CUR_PLY, CUR_MIN, board);
-
-		if(TEMP_MIN < CUR_MIN)
-		{
-			CUR_MIN = TEMP_MIN;
-		}
-	}
-
-	//check for alpha-beta pruning	
-	if(CUR_MAX >= CUR_MIN)
-	{
-		return CUR_MIN;
-	}
-
-	//Move down to the right
-	//check that the square to the right exists and is empty
-	if(movesDown[ii].right != -1 && board[movesDown[ii].right] == 0)
-	{
-		moveFrom = ii; 
-		moveTo = movesDown[ii].right;
-
-		//call the move function to change the board
-		TEMP_MIN = move(moveFrom, moveTo, CUR_PLY, CUR_MIN, board);
-
-		if(TEMP_MIN < CUR_MIN)
-		{
-			CUR_MIN = TEMP_MIN;
-		}
-	}*/
-	return CUR_MIN;
+	return tempVec;
 }
 
 /////////////////////////////////////////////////
