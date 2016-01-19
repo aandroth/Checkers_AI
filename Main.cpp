@@ -44,7 +44,8 @@ void assignTables();
 //functions to drive the moves
 float ourMoveDriver(int CUR_PLY, float CUR_MIN, int board[]);
 float ourJumpRecurse(int square, float CUR_MIN, int CUR_PLY, int board[]);
-vector<int> redMove(MoveResultArray *, vector<int>, int);
+vector<vector<int>> redMove(MoveResultArray *, vector<int>, int);
+vector<vector<int>> redJump(MoveResultArray *, vector<int>, int);
 
 
 //functions to change the board for each jump
@@ -119,8 +120,12 @@ int main()
 		board.push_back(0);
 	}
 	board[3] = 1;
+	board[17] = 2;
 	board[31] = -2;
+	board[20] = -1;
 	board[21] = -1;
+	board[22] = -1;
+	board[23] = -1;
 
 	int currMax = -11;
 
@@ -157,20 +162,12 @@ int main()
 		{
 			if (board[cc] > 0)
 			{
-				vector<int> pieceMoves;
-				pieceMoves = redMove(_moveResultsArray, board, cc);
-				for (int ii = 0; ii < pieceMoves.size(); ++ii)
+				vector<vector<int>> pieceMoveBoards;
+				//pieceMoveBoards = redMove(_moveResultsArray, board, cc);
+				vector<vector<int>> pieceJumpBoards = redJump(_moveResultsArray, board, cc);
+				pieceMoveBoards.insert(pieceMoveBoards.end(), pieceJumpBoards.begin(), pieceJumpBoards.end());
+				for (int ii = 0; ii < pieceMoveBoards.size(); ++ii)
 				{
-					tempBoard = board;
-
-					tempBoard[pieceMoves[ii]] = tempBoard[cc];
-					tempBoard[cc] = 0;
-
-					if (tempBoard[pieceMoves[ii]] == 1 && pieceMoves[ii] > 27)
-					{
-						cout << pieceMoves[ii] << endl;
-						tempBoard[pieceMoves[ii]] = 2;
-					}
 
 					// Get the value from the BEF
 					int val = std::rand() % 20 - 10;
@@ -179,7 +176,7 @@ int main()
 					if (currMax < val)
 					{
 						currMax = val;
-						savedBoards.push_back(tempBoard);
+						savedBoards.push_back(pieceMoveBoards[ii]);
 						bestBoardIndex = savedBoards.size() - 1;
 					}
 					cout << "max is " << currMax << endl;
@@ -188,6 +185,7 @@ int main()
 		}
 
 		board = savedBoards[bestBoardIndex];
+		savedBoards.clear();
 
 		/*
 		//switch the board so the other NN can make a move
@@ -234,35 +232,254 @@ int main()
 //		if no moves can be done it returns -900.0 to ourMoveDriver to report no moves,
 //		if a move can be made the move function is called
 //
-vector<int> redMove(MoveResultArray * _moveResultArray, vector<int> board, int index)
+vector<vector<int>> redMove(MoveResultArray * _moveResultArray, vector<int> board, int index)
 {
-	vector<int> tempVec;
+	vector<vector<int>> returnBoards;
+	vector<int> boardCopy;
 
 	int tempInt = _moveResultArray->movesDown[index].left;
+	boardCopy = board;
 	if (tempInt != -1 && board[tempInt] == 0)
 	{
-		tempVec.push_back(tempInt);
+		boardCopy[tempInt] = boardCopy[index];
+		boardCopy[index] = 0;
+
+		if (boardCopy[tempInt] == 1 && tempInt > 27)
+		{
+			boardCopy[tempInt] = 2;
+		}
+		returnBoards.push_back(boardCopy);
+		boardCopy = board;
 	}
 	tempInt = _moveResultArray->movesDown[index].right;
 	if (tempInt != -1 && board[tempInt] == 0)
 	{
-		tempVec.push_back(tempInt);
+		boardCopy[tempInt] = boardCopy[index];
+		boardCopy[index] = 0;
+
+		if (boardCopy[tempInt] == 1 && tempInt > 27)
+		{
+			boardCopy[tempInt] = 2;
+		}
+		returnBoards.push_back(boardCopy);
+		boardCopy = board;
 	}
 	if (board[index] > 1)
 	{
 		tempInt = _moveResultArray->movesUp[index].left;
 		if (tempInt != -1 && board[tempInt] == 0)
 		{
-			tempVec.push_back(tempInt);
+			boardCopy[tempInt] = boardCopy[index];
+			boardCopy[index] = 0;
+
+			returnBoards.push_back(boardCopy);
+			boardCopy = board;
 		}
 		tempInt = _moveResultArray->movesUp[index].right;
 		if (tempInt != -1 && board[tempInt] == 0)
 		{
-			tempVec.push_back(tempInt);
+			boardCopy[tempInt] = boardCopy[index];
+			boardCopy[index] = 0;
+
+			returnBoards.push_back(boardCopy);
 		}
 	}
 
-	return tempVec;
+	return returnBoards;
+}
+
+/*
+//redJump
+//
+//Function that will take a piece on the board and test for every possible jump from its current position
+//
+//Pre:	The current square, a ready board and the current ply
+//Post: Tests each direction that the peice can jump,
+//		if a move can be made the move is put in the vector of jumps to be evaluated
+//
+vector<vector<int>> redJump(MoveResultArray * _moveResultArray, vector<int> board, int index)
+{
+
+	vector<vector<int>> returnBoards;
+	vector<int> boardCopy;
+
+	int tempInt = _moveResultArray->jumpsDown[index].left;
+	int enemyPos = _moveResultArray->movesDown[index].left;
+	boardCopy = board;
+	if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+	{
+		boardCopy[tempInt] = boardCopy[index];
+		boardCopy[enemyPos] = 0;
+		boardCopy[index] = 0;
+
+		if (boardCopy[tempInt] == 1 && tempInt > 27)
+		{
+			boardCopy[tempInt] = 2;
+		}
+		returnBoards.push_back(boardCopy);
+		boardCopy = board;
+	}
+	tempInt = _moveResultArray->jumpsDown[index].right;
+	enemyPos = _moveResultArray->movesDown[index].right;
+	if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+	{
+		boardCopy[tempInt] = boardCopy[index];
+		boardCopy[enemyPos] = 0;
+		boardCopy[index] = 0;
+
+		if (boardCopy[tempInt] == 1 && tempInt > 27)
+		{
+			boardCopy[tempInt] = 2;
+		}
+		returnBoards.push_back(boardCopy);
+		boardCopy = board;
+	}
+	if (board[index] > 1)
+	{
+		tempInt = _moveResultArray->jumpsUp[index].left;
+		enemyPos = _moveResultArray->movesUp[index].left;
+		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+		{
+			boardCopy[tempInt] = boardCopy[index];
+			boardCopy[enemyPos] = 0;
+			boardCopy[index] = 0;
+
+			returnBoards.push_back(boardCopy);
+			boardCopy = board;
+		}
+		tempInt = _moveResultArray->jumpsUp[index].right;
+		enemyPos = _moveResultArray->movesUp[index].right;
+		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+		{
+			boardCopy[tempInt] = boardCopy[index];
+			boardCopy[enemyPos] = 0;
+			boardCopy[index] = 0;
+
+			returnBoards.push_back(boardCopy);
+			boardCopy = board;
+		}
+	}
+
+	return returnBoards;
+}*/
+
+//redJump
+//
+//Function that will take a piece on the board and test for every possible jump from its current position
+//
+//Pre:	The current square, a ready board and the current ply
+//Post: Tests each direction that the peice can jump,
+//		if a move can be made the move is put in the vector of jumps to be evaluated
+//
+vector<vector<int>> redJump(MoveResultArray * _moveResultArray, vector<int> board, int index)
+{
+
+	vector<vector<int>> returnBoards;
+	vector<int> boardCopy, currBoard, piecePositions;
+	int currPosition;
+
+	returnBoards.push_back(board);
+	piecePositions.push_back(index);
+	bool foundJump = false;
+
+
+	for (int ii = 0; ii < returnBoards.size(); ++ii)
+	{
+		boardCopy = returnBoards[ii];
+		currBoard = returnBoards[ii];
+		currPosition = piecePositions[ii];
+		foundJump = false;
+		int tempInt = _moveResultArray->jumpsDown[currPosition].left;
+		int enemyPos = _moveResultArray->movesDown[currPosition].left;
+		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+		{
+			boardCopy[tempInt] = boardCopy[currPosition];
+			boardCopy[enemyPos] = 0;
+			boardCopy[currPosition] = 0;
+
+			if (boardCopy[tempInt] == 1 && tempInt > 27)
+			{
+				boardCopy[tempInt] = 2;
+			}
+
+			foundJump = true;
+			returnBoards[ii] = boardCopy;
+			boardCopy = currBoard;
+			piecePositions[ii] = tempInt;
+
+		}
+		tempInt = _moveResultArray->jumpsDown[currPosition].right;
+		enemyPos = _moveResultArray->movesDown[currPosition].right;
+		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+		{
+			boardCopy[tempInt] = boardCopy[currPosition];
+			boardCopy[enemyPos] = 0;
+			boardCopy[currPosition] = 0;
+
+			if (boardCopy[tempInt] == 1 && tempInt > 27)
+			{
+				boardCopy[tempInt] = 2;
+			}
+
+			if (foundJump)
+			{
+				returnBoards.push_back(boardCopy);
+				piecePositions.push_back(tempInt);
+			}
+			else
+			{
+				foundJump = true;
+				returnBoards[ii] = boardCopy;
+				boardCopy = currBoard;
+				piecePositions[ii] = tempInt;
+			}
+		}
+		if (board[index] > 1)
+		{
+			tempInt = _moveResultArray->jumpsUp[currPosition].left;
+			enemyPos = _moveResultArray->movesUp[currPosition].left;
+			if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+			{
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+
+				if (foundJump)
+				{
+					returnBoards.push_back(boardCopy);
+					piecePositions.push_back(tempInt);
+				}
+				else
+				{
+					foundJump = true;
+					returnBoards[ii] = boardCopy;
+					boardCopy = currBoard;
+					piecePositions[ii] = tempInt;
+				}
+			}
+			tempInt = _moveResultArray->jumpsUp[currPosition].right;
+			enemyPos = _moveResultArray->movesUp[currPosition].right;
+			if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
+			{
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+
+				if (foundJump)
+				{
+					returnBoards.push_back(boardCopy);
+					piecePositions.push_back(tempInt);
+				}
+				else
+				{
+					returnBoards[ii] = boardCopy;
+					piecePositions[ii] = tempInt;
+				}
+			}
+		}
+	}
+
+	return returnBoards;
 }
 
 /////////////////////////////////////////////////
