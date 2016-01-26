@@ -1,21 +1,26 @@
+#include<string>
+using std::to_string;
 #include <iostream>
+using std::cout;
+using std::cin;
+using std::endl;
 #include <time.h>
 #include <concurrent_vector.h>
 #include <fstream>
+using std::ofstream;
+using std::fstream;
 #include <utility>
 #include <windows.h>   // WinApi header
 #include "BEFNetwork.h"
 #include "MoveResultArray.h"
-#include "Piece.h"
+#include "PlayerDriver.h"
 #include <vector>
 using std::vector;
 using std::pair;
-using std::ofstream;
-using std::fstream;
-using std::cout;
-using std::cin;
-using std::endl;
 using namespace std;//used for the ios:: commands
+
+#include <map>
+using std::map;
 
 //Aaron Andrews
 //Zach Hetrick
@@ -66,6 +71,11 @@ vector<int> vectorizeBoard(int[]);
 int* unvectorizeBoard(vector<int>);
 int decideWinner(float TEMP_VAL_R, float TEMP_VAL_W, int * board);
 
+// Functions to modify the tree
+void sendValueToAncestors(TreeNode *, map<string, TreeNode> *);
+bool parentIsLastChildOfGrandparent(string, map<string, TreeNode> *);
+string keyOfNextValidNode(string, map<string, TreeNode> *);
+string keyOfNextSibling(string, map<string, TreeNode> *);
 
 //variables to hold values we may change (hard code)
 //const int LAYER_1 = 32;
@@ -99,6 +109,8 @@ int main()
 	MoveResultArray * _moveResultsArray = new MoveResultArray;
 	_moveResultsArray->assignTables();
 	srand((unsigned int)time(0)); //Seed the random number generator
+	map<string, TreeNode> boardTree;
+	
 	//float TEMP_VAL_R;
 	//float TEMP_VAL_W;
 
@@ -111,15 +123,17 @@ int main()
 	int * currBoard;
 	
 	//take board
-	int bestBoardIndex, pieceMovedIndex, movedToPosition;
-	vector<int> tempBoard;
-	vector<vector<int>> savedBoards;
+	string bestBoardKey;
+	int pieceMovedIndex, movedToPosition;
+	// Starting board
 	vector<int> board;
 	for (int ii = 0; ii < 32; ++ii)
 	{
 		board.push_back(0);
 	}
 	board[3] = 1;
+	board[13] = -1;
+	board[14] = -1;
 	board[17] = 2;
 	board[31] = -2;
 	board[20] = -1;
@@ -127,360 +141,82 @@ int main()
 	board[22] = -1;
 	board[23] = -1;
 
-	int currMax = -11;
+	Player redPlayer;
 
-	Piece ** pieceArray = new Piece*[12];
-	pieceArray[0] = new RedChecker(_moveResultsArray);
-	pieceArray[0]->setPosition(3);
-
-	vector<int>	movesToEvaluate;
-
-	boardDisplay(board);
-
-	turn = 1;
-
-	for (int ii = 0; ii < 10; ++ii, ++turn)
+	for (int ii = 0; ii < 10; ++ii)
 	{
-		cout<<"the turn is: "<<turn<<"\n";
-		currMax = -11;
-		//Red takes a turn
-		/*TEMP_VAL_R = ourMoveDriver(1, 900.0, currBoard);
+		redPlayer.beginBoardEvaluation(board);
+		board = redPlayer.returnBestBoard();
+		//boardDisplay(board);
+	}
 
-		cout<<"TEMP_VAL_"<<TEMP_VAL_R<<"\n";
 
-		for(int ii = 0; ii < 32; ii++)
-		{board[ii] = tempBoard[ii];}
+	
+	/*
+	// TEST
+	//create a tree with three layers
+	// Original Board
+	// Parent boards
+	// Child boards
+	map<string, TreeNode> testTree;
+	map<string, TreeNode> * testTreePtr = &testTree;
+	TreeNode * topTreeNode = new TreeNode;
+	// Get the value from the BEF
+	topTreeNode->_boardValue = -11;
+	testTree["_0"] = *topTreeNode;
 
-		turn++;
+	for (int ii = 0; ii < 3; ++ii)
+	{
+		TreeNode * parentTreeNode = new TreeNode;
+		// Get the value from the BEF
+		parentTreeNode->_boardValue = std::rand() % 20 - 10;
+		string parentKey = "_0_" + to_string(ii);
+		parentTreeNode->_parentKey = "_0";
+		testTree[parentKey] = *parentTreeNode;
+		testTree["_0"]._childKeys.push_back(parentKey);
+		cout << "Created parent with value of " + to_string(testTree[parentKey]._boardValue) << " and key " << parentKey << endl;
 
-		cout<<"Red moved\n";
-		boardDisplay(currBoard);
-
-		*/
-
-		for (int cc = 0; cc < 32; ++cc)
+		for (int jj = 0; jj < 5; ++jj)
 		{
-			if (board[cc] > 0)
-			{
-				vector<vector<int>> pieceMoveBoards;
-				//pieceMoveBoards = redMove(_moveResultsArray, board, cc);
-				vector<vector<int>> pieceJumpBoards = redJump(_moveResultsArray, board, cc);
-				pieceMoveBoards.insert(pieceMoveBoards.end(), pieceJumpBoards.begin(), pieceJumpBoards.end());
-				for (int ii = 0; ii < pieceMoveBoards.size(); ++ii)
-				{
-
-					// Get the value from the BEF
-					int val = std::rand() % 20 - 10;
-					cout << "val is " << val << endl;
-					// Compare value to current max
-					if (currMax < val)
-					{
-						currMax = val;
-						savedBoards.push_back(pieceMoveBoards[ii]);
-						bestBoardIndex = savedBoards.size() - 1;
-					}
-					cout << "max is " << currMax << endl;
-				}
-			}
+			TreeNode * childTreeNode = new TreeNode;
+			// Get the value from the BEF
+			childTreeNode->_boardValue = std::rand() % 20 - 10;
+			string childKey = parentKey + "_" + to_string(jj);
+			childTreeNode->_parentKey = parentKey;
+			testTree[childKey] = *childTreeNode;
+			testTree[parentKey]._childKeys.push_back(childKey);
+			cout << "Pushed back " << childKey << " to " << parentKey << endl;
+			cout << "Created child with value of " + to_string(testTree[childKey]._boardValue) << " and key " << childKey << endl;
+			sendValueToAncestors(childTreeNode, testTreePtr);
 		}
+	}
 
-		board = savedBoards[bestBoardIndex];
-		savedBoards.clear();
+	cout << "topTreeNode->_childKeys.size(): " << testTree["_0"]._childKeys.size() << endl;
 
-		/*
-		//switch the board so the other NN can make a move
-		cout<<"switch 1\n";
-		switchBoard(currBoard);
+	for (int ii = 0; ii < testTree["_0"]._childKeys.size(); ++ii)
+	{
+		if (parentIsLastChildOfGrandparent(testTree["_0"]._childKeys[ii], testTreePtr))
+		{
+			cout << "Node with key " << testTree["_0"]._childKeys[ii] << " is the last child node" << endl;
+		}
+		else
+		{
+			cout << "Node with key " << testTree["_0"]._childKeys[ii] << " is not the last child node" << endl;
+		}
+	}
 
-		//White takes a turn
-		TEMP_VAL_W = ourMoveDriver(1, 900.0, currBoard);
-
-		cout<<"TEMP_VAL_W"<<TEMP_VAL_W<<"\n";
-
-		for(int ii = 0; ii < 32; ii++)
-			{board[ii] = tempBoard[ii];}
-			*/
-
-		//switch the board so the other NN can make a move
-		//switchBoard(currBoard);
-
-		//cout<<"White moved\n";
-		boardDisplay(board);
-
-		//cout<<"switch 3\n";
-		//switchBoard(currBoard);
-
-		//boardDisplay(currBoard);
-
-
-		//cin>>board[0];
+	for (int ii = 0; ii < testTree["_0"]._childKeys.size(); ++ii)
+	{
+		cout << "Sibling of " << testTree["_0"]._childKeys[ii] << " is " << keyOfNextSibling(testTree["_0"]._childKeys[ii], testTreePtr) << endl;
 	}
 
 	boardDisplay(board);
 		cout<<"\n";
 		cin>>board[0];
+		*/
 	return 0;
 }
 
-
-//redMove
-//
-//Function that will take a piece on the board and test for every possible move from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can move,
-//		if no moves can be done it returns -900.0 to ourMoveDriver to report no moves,
-//		if a move can be made the move function is called
-//
-vector<vector<int>> redMove(MoveResultArray * _moveResultArray, vector<int> board, int index)
-{
-	vector<vector<int>> returnBoards;
-	vector<int> boardCopy;
-
-	int tempInt = _moveResultArray->movesDown[index].left;
-	boardCopy = board;
-	if (tempInt != -1 && board[tempInt] == 0)
-	{
-		boardCopy[tempInt] = boardCopy[index];
-		boardCopy[index] = 0;
-
-		if (boardCopy[tempInt] == 1 && tempInt > 27)
-		{
-			boardCopy[tempInt] = 2;
-		}
-		returnBoards.push_back(boardCopy);
-		boardCopy = board;
-	}
-	tempInt = _moveResultArray->movesDown[index].right;
-	if (tempInt != -1 && board[tempInt] == 0)
-	{
-		boardCopy[tempInt] = boardCopy[index];
-		boardCopy[index] = 0;
-
-		if (boardCopy[tempInt] == 1 && tempInt > 27)
-		{
-			boardCopy[tempInt] = 2;
-		}
-		returnBoards.push_back(boardCopy);
-		boardCopy = board;
-	}
-	if (board[index] > 1)
-	{
-		tempInt = _moveResultArray->movesUp[index].left;
-		if (tempInt != -1 && board[tempInt] == 0)
-		{
-			boardCopy[tempInt] = boardCopy[index];
-			boardCopy[index] = 0;
-
-			returnBoards.push_back(boardCopy);
-			boardCopy = board;
-		}
-		tempInt = _moveResultArray->movesUp[index].right;
-		if (tempInt != -1 && board[tempInt] == 0)
-		{
-			boardCopy[tempInt] = boardCopy[index];
-			boardCopy[index] = 0;
-
-			returnBoards.push_back(boardCopy);
-		}
-	}
-
-	return returnBoards;
-}
-
-/*
-//redJump
-//
-//Function that will take a piece on the board and test for every possible jump from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can jump,
-//		if a move can be made the move is put in the vector of jumps to be evaluated
-//
-vector<vector<int>> redJump(MoveResultArray * _moveResultArray, vector<int> board, int index)
-{
-
-	vector<vector<int>> returnBoards;
-	vector<int> boardCopy;
-
-	int tempInt = _moveResultArray->jumpsDown[index].left;
-	int enemyPos = _moveResultArray->movesDown[index].left;
-	boardCopy = board;
-	if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-	{
-		boardCopy[tempInt] = boardCopy[index];
-		boardCopy[enemyPos] = 0;
-		boardCopy[index] = 0;
-
-		if (boardCopy[tempInt] == 1 && tempInt > 27)
-		{
-			boardCopy[tempInt] = 2;
-		}
-		returnBoards.push_back(boardCopy);
-		boardCopy = board;
-	}
-	tempInt = _moveResultArray->jumpsDown[index].right;
-	enemyPos = _moveResultArray->movesDown[index].right;
-	if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-	{
-		boardCopy[tempInt] = boardCopy[index];
-		boardCopy[enemyPos] = 0;
-		boardCopy[index] = 0;
-
-		if (boardCopy[tempInt] == 1 && tempInt > 27)
-		{
-			boardCopy[tempInt] = 2;
-		}
-		returnBoards.push_back(boardCopy);
-		boardCopy = board;
-	}
-	if (board[index] > 1)
-	{
-		tempInt = _moveResultArray->jumpsUp[index].left;
-		enemyPos = _moveResultArray->movesUp[index].left;
-		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-		{
-			boardCopy[tempInt] = boardCopy[index];
-			boardCopy[enemyPos] = 0;
-			boardCopy[index] = 0;
-
-			returnBoards.push_back(boardCopy);
-			boardCopy = board;
-		}
-		tempInt = _moveResultArray->jumpsUp[index].right;
-		enemyPos = _moveResultArray->movesUp[index].right;
-		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-		{
-			boardCopy[tempInt] = boardCopy[index];
-			boardCopy[enemyPos] = 0;
-			boardCopy[index] = 0;
-
-			returnBoards.push_back(boardCopy);
-			boardCopy = board;
-		}
-	}
-
-	return returnBoards;
-}*/
-
-//redJump
-//
-//Function that will take a piece on the board and test for every possible jump from its current position
-//
-//Pre:	The current square, a ready board and the current ply
-//Post: Tests each direction that the peice can jump,
-//		if a move can be made the move is put in the vector of jumps to be evaluated
-//
-vector<vector<int>> redJump(MoveResultArray * _moveResultArray, vector<int> board, int index)
-{
-
-	vector<vector<int>> returnBoards;
-	vector<int> boardCopy, currBoard, piecePositions;
-	int currPosition;
-
-	returnBoards.push_back(board);
-	piecePositions.push_back(index);
-	bool foundJump = false;
-
-
-	for (int ii = 0; ii < returnBoards.size(); ++ii)
-	{
-		boardCopy = returnBoards[ii];
-		currBoard = returnBoards[ii];
-		currPosition = piecePositions[ii];
-		foundJump = false;
-		int tempInt = _moveResultArray->jumpsDown[currPosition].left;
-		int enemyPos = _moveResultArray->movesDown[currPosition].left;
-		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-		{
-			boardCopy[tempInt] = boardCopy[currPosition];
-			boardCopy[enemyPos] = 0;
-			boardCopy[currPosition] = 0;
-
-			if (boardCopy[tempInt] == 1 && tempInt > 27)
-			{
-				boardCopy[tempInt] = 2;
-			}
-
-			foundJump = true;
-			returnBoards[ii] = boardCopy;
-			boardCopy = currBoard;
-			piecePositions[ii] = tempInt;
-
-		}
-		tempInt = _moveResultArray->jumpsDown[currPosition].right;
-		enemyPos = _moveResultArray->movesDown[currPosition].right;
-		if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-		{
-			boardCopy[tempInt] = boardCopy[currPosition];
-			boardCopy[enemyPos] = 0;
-			boardCopy[currPosition] = 0;
-
-			if (boardCopy[tempInt] == 1 && tempInt > 27)
-			{
-				boardCopy[tempInt] = 2;
-			}
-
-			if (foundJump)
-			{
-				returnBoards.push_back(boardCopy);
-				piecePositions.push_back(tempInt);
-			}
-			else
-			{
-				foundJump = true;
-				returnBoards[ii] = boardCopy;
-				boardCopy = currBoard;
-				piecePositions[ii] = tempInt;
-			}
-		}
-		if (board[index] > 1)
-		{
-			tempInt = _moveResultArray->jumpsUp[currPosition].left;
-			enemyPos = _moveResultArray->movesUp[currPosition].left;
-			if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-			{
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-
-				if (foundJump)
-				{
-					returnBoards.push_back(boardCopy);
-					piecePositions.push_back(tempInt);
-				}
-				else
-				{
-					foundJump = true;
-					returnBoards[ii] = boardCopy;
-					boardCopy = currBoard;
-					piecePositions[ii] = tempInt;
-				}
-			}
-			tempInt = _moveResultArray->jumpsUp[currPosition].right;
-			enemyPos = _moveResultArray->movesUp[currPosition].right;
-			if (tempInt != -1 && board[tempInt] == 0 && board[enemyPos] < 0)
-			{
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-
-				if (foundJump)
-				{
-					returnBoards.push_back(boardCopy);
-					piecePositions.push_back(tempInt);
-				}
-				else
-				{
-					returnBoards[ii] = boardCopy;
-					piecePositions[ii] = tempInt;
-				}
-			}
-		}
-	}
-
-	return returnBoards;
-}
 
 /////////////////////////////////////////////////
 ///////////////Begin of helpful functions
@@ -584,40 +320,6 @@ void switchBoard(int * board)
 }
 
 
-//vectorizeBoard
-//
-//Function that will return a vector with the values of the int array
-//
-//Pre:	Int array
-//Post: Returns a vector with the values of the currBoard
-//
-vector<int> vectorizeBoard(int * curr_board)
-{
-	vector<int> tempVec;
-	for (int ii = 0; ii < 32; ++ii)
-	{
-		tempVec.push_back(curr_board[ii]);
-	}
-	return tempVec;
-}
-
-//unvectorizeBoard
-//
-//Function that will return a pointer to an int array with the values of the vector
-//
-//Pre:	A vector of ints
-//Post: Returns an array with the values of the vector
-//
-int* unvectorizeBoard(vector<int> intVec)
-{
-	int tempArr[32];
-	for (int ii = 0; ii < 32; ++ii)
-	{
-		tempArr[ii] = intVec[ii];
-	}
-	return tempArr;
-}
-
 //decideWinner
 //
 //Function that will decide which NN won the game, or if it's a draw
@@ -696,4 +398,3 @@ void fillArrs(WeightArrs &player)
 		}
 	}
 }
-
