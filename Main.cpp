@@ -205,7 +205,7 @@ int main()
 	}
 
 	//boardDisplay(board);
-	/*
+	
 	std::shared_ptr<MoveResultArray> _moveResArr(new MoveResultArray);
 	_moveResArr->assignTables();
 
@@ -260,7 +260,8 @@ int main()
 			whitePlayer.NN.writeWeightsToFileNumber(counterNN);
 			++battleCount;
 			boardDisplay(boardCopy);
-		}*/
+			cout << endl << endl;
+		}
 		
 		// Create an array of pairs: the NNs rank and index
 		vector <pair<int, int>> battleRankVec;
@@ -278,34 +279,17 @@ int main()
 		}
 		// Sort the array by the first value of each pair
 		std::sort(battleRankVec.rbegin(), battleRankVec.rend());
-		cout << endl;
 
-		for (int ii = 0; ii < battleRankVec.size(); ++ii)
+		// Spawn children from each of the top 50 NNs, overwriting the bottom 50
+		for (int ii = 0; ii < battleRankVec.size()/2; ++ii)
 		{
-			cout << battleRankVec[ii].first << ", " << battleRankVec[ii].second << endl;
-			// Spawn children from each of the top 50 NNs, overwriting the bottom 50
+			cout << "Score of " << battleRankVec[ii].second << " is " << battleRankVec[ii].first << ", vs score of " << battleRankVec[ii + 50].second << " is " << battleRankVec[ii + 50].first << endl;
+			cout << "Spawn of " << battleRankVec[ii].second << " will overwrite " << battleRankVec[ii + 50].second << endl;
+
+			createNeuralNetworkChildFromFileNumber_ByValue_ToFileNumber(ii, 0.2, ii+50);
 		}
-		createNeuralNetworkChildFromFileNumber_ByValue_ToFileNumber(6, 0.2, 5);
+	}
 
-	
-	//}
-	// Go through each neural network in the NNs folder, and put it into an array
-	// Sort the array by the NNs rank
-
-	// Grab a neural network from the array of neural networks
-	// Put one in the redPlayer
-	//RedPlayer redPlayer;
-	// Put one in the whitePlayer
-	//WhitePlayer whitePlayer;
-
-
-
-	//boardDisplay(board);
-	// Play the game
-	// 100 moves is a draw
-	// 10 seconds per turn
-	// return if found the end, or run out of moves to check
-	// 
 	/*
 	for (int ii = 0; ii < 1; ++ii)
 	{
