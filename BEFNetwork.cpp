@@ -5,60 +5,152 @@ using std::cout;
 using std::cin;
 using std::endl;
 
-float L1[LAYER_1];
-float L2[LAYER_2];
-float L3[LAYER_3]; 
-float L4[LAYER_4];
+float L1[LAYER_1_SIZE];
+float L2[LAYER_2_SIZE];
+float L3[LAYER_3_SIZE]; 
+float L4[LAYER_4_SIZE];
 
-NeuralNetwork::NeuralNetwork(float arr1[40][32], float arr2[10][40], float arr3[1][10])
+NeuralNetwork::NeuralNetwork()
 {
 	_layersAndNodes[0] = L1;
 	_layersAndNodes[1] = L2;
 	_layersAndNodes[2] = L3;
 	_layersAndNodes[3] = L4;
 
-	
 	//These are for keeping track of the amount of nodes in each layer, since we can't call size() on a C-array
-	_nodesInLayer[0] = LAYER_1;
-	_nodesInLayer[1] = LAYER_2;
-	_nodesInLayer[2] = LAYER_3;
-	_nodesInLayer[3] = LAYER_4;
+	_nodesInLayer[0] = LAYER_1_SIZE;
+	_nodesInLayer[1] = LAYER_2_SIZE;
+	_nodesInLayer[2] = LAYER_3_SIZE;
+	_nodesInLayer[3] = LAYER_4_SIZE;
 }
 
+void NeuralNetwork::fillWeightsFromFileNumber(int fileNumber)
+{
+	string fileName = "NNs/NN_" + std::to_string(fileNumber) + ".txt";
+	cout << fileName << endl;
 
-//fills the weights with numbers from the NN
-void NeuralNetwork::fillWeights(float arr1[LAYER_2][LAYER_1], float arr2[LAYER_3][LAYER_2], float arr3[LAYER_4][LAYER_3])
-{		
-	int kk = 0;
-
-	for(int ii = 0; ii < LAYER_2; ii++)
+	std::ifstream inFile(fileName);
+	string tempString, fileString;
+	int state = 0, countChar = 0, countLine = 0;
+	vector<float> tempVec;
+	while (inFile >> tempString)
 	{
-		for(int jj = 0; jj < LAYER_1; jj++)
+		switch (state)
 		{
-			_weights[kk] = arr1[ii][jj];
-			kk++;
+		case 0:
+			if (countChar == 1)
+			{
+				m_class = std::stoi(tempString);
+				countChar = 0;
+				state = 1;
+			}
+			else
+			{
+				m_points = std::stoi(tempString);
+			}
+			break;
+		case 1:
+			tempVec.push_back(std::stof(tempString));
+			if (countChar == LAYER_1_SIZE) // 32 weights
+			{
+				weightArrs0.push_back(tempVec);
+				tempVec.clear();
+				countChar = 0;
+				++countLine;
+			}
+			if (countLine == LAYER_2_SIZE) // 40 nodes
+			{
+				countLine = 0;
+				state = 2;
+			}
+			break;
+		case 2:
+			tempVec.push_back(std::stof(tempString));
+
+			if (countChar == LAYER_2_SIZE) // 40 weights
+			{
+				weightArrs1.push_back(tempVec);
+				tempVec.clear();
+				countChar = 0;
+				++countLine;
+			}
+			if (countLine == LAYER_3_SIZE) // 10 nodes
+			{
+				countLine = 0;
+				state = 3;
+			}
+			break;
+		case 3:
+			tempVec.push_back(std::stof(tempString));
+
+			if (countChar == LAYER_3_SIZE) // 10 weights for 1 node
+			{
+				weightArrs2 = tempVec;
+				countChar = 0;
+			}
+			break;
+		}
+		++countChar;
+	}
+
+	/*
+	// For 40 nodes, create 32 weights each
+	for (int ii = 0; ii < 40; ++ii)
+	{
+		for (int jj = 0; jj < 32; ++jj)
+		{
+			//cout << std::to_string(weightArrs0[ii][jj]) << " ";
 		}
 	}
-	for(int ii = 0; ii < LAYER_3; ii++)
+	// For 10 nodes, create 40 weights each
+	for (int ii = 0; ii < 10; ++ii)
 	{
-		for(int jj = 0; jj < LAYER_2; jj++)
+		for (int jj = 0; jj < 40; ++jj)
 		{
-			_weights[kk] = arr2[ii][jj];
-			kk++;
+			//cout << std::to_string(weightArrs1[ii][jj]) << " ";
 		}
 	}
-	for(int ii = 0; ii < LAYER_4; ii++)
+	// For 1 node, create 10 weights
+	for (int ii = 0; ii < 10; ++ii)
 	{
-		for(int jj = 0; jj < LAYER_3; jj++)
+		cout << std::to_string(weightArrs2[ii]) << " " << endl;;
+	}*/
+}
+
+void NeuralNetwork::writeWeightsToFileNumber(int fileNumber)
+{
+	string fileName = "NNs/NN_" + to_string(fileNumber) + ".txt";
+	ofstream outFile;
+	outFile.open(fileName);
+	outFile << to_string(m_points) << " ";
+	outFile << to_string(m_class) << " ";
+
+	// For 40 nodes, create 32 weights each
+	for (int ii = 0; ii < 40; ++ii)
+	{
+		vector<float> tempVec;
+		for (int jj = 0; jj < 32; ++jj)
 		{
-			_weights[kk] = arr3[ii][jj];
-			kk++;
+			outFile << to_string(weightArrs0[ii][jj]) << " ";
 		}
+	}
+	// For 10 nodes, create 40 weights each
+	for (int ii = 0; ii < 10; ++ii)
+	{
+		vector<float> tempVec;
+		for (int jj = 0; jj < 40; ++jj)
+		{
+			outFile << to_string(weightArrs1[ii][jj]) << " ";
+		}
+	}
+	// For 1 node, create 10 weights
+	for (int ii = 0; ii < 10; ++ii)
+	{
+		outFile << to_string(weightArrs2[ii]) << " ";
 	}
 }
 
-
-float NeuralNetwork::computeBoardScore(int * inputArray)
+float NeuralNetwork::computeScoreForBoard(vector<int> inputArray)
 {
 	//These are all used in the computeBoardScore function
 	int currentLayer;
@@ -67,40 +159,61 @@ float NeuralNetwork::computeBoardScore(int * inputArray)
 	int currentWeight;
 	int weightCount;
 
-//	cout<<"computeBoardScore 2: \n";
-
-	//Assign the nodes in the first layer to the inputArray values
-	for(int i = 0; i < LAYER_1; ++i)
-	{	
-		_layersAndNodes[0][i] = inputArray[i];
-	}
-		//We start at layer 1 so we can start filling in values in the SECOND layer of nodes
-		for(currentLayer = 1, previousLayer = 0, weightCount = 0; currentLayer < NUM_LAYERS; ++currentLayer, ++previousLayer)
+	vector<float> resultArrs0, resultArrs1;
+	float finalResult;
+	// Take the 32 inputs from the Board and multiply them by each node's weights that are in weightArrs0
+	// Put the results into a vector that each entry is the averaging of each weight's result
+#pragma loop(hint_parallel(8))
+	for (int ii = 0; ii < LAYER_2_SIZE; ++ii) // 40 nodes
+	{
+		resultArrs0.push_back(0);
+		vector<float>::iterator weights0ItrInner;
+		weights0ItrInner = weightArrs0[ii].begin();
+		for (int jj = 0; jj < LAYER_1_SIZE; ++jj) // 32 weights per node
 		{
-			//We iterate through the loop however many weights are attached to this node
-			for(currentNode = 0; currentNode < _nodesInLayer[currentLayer]; ++currentNode) 
-			{
-				//Zero out the node before we store a value in it because right now it contains a junk value
-				_layersAndNodes[currentLayer][currentNode] = 0;	
-	
-				//And then start at the first node in the first layer with the attached weight
-				//to begin the weight multiplication and addition
-				for(currentWeight = 0; currentWeight < _nodesInLayer[previousLayer]; ++currentWeight)	
-				{																						
-					_layersAndNodes[currentLayer][currentNode] += (_layersAndNodes[previousLayer][currentWeight])*(_weights[weightCount]);
-					++weightCount;
-
-					if(currentLayer == 3)
-						cout<<"_layersAndNodes[currentLayer][currentNode]: "<<_layersAndNodes[currentLayer][currentNode]<<"\n";
-				}
-
-					if(currentLayer != 3)
-					{					
-						_layersAndNodes[currentLayer][currentNode] = (1/(1+(exp(sigCo*_layersAndNodes[currentLayer][currentNode]))));
-					}
-			}
+			*(resultArrs0.begin() + ii) += *(weightArrs0[ii].begin() + jj) * *(inputArray.begin() + jj);
+			//resultArrs0[ii] += weightArrs0[ii][jj] * inputArray[jj];
 		}
+		*(resultArrs0.begin() + ii) /= LAYER_1_SIZE; // divide by the 32 weights
+		//cout << "resultArrs0[ii]: " << resultArrs0[ii] << endl;
+	}
 
-	//Return the first node in the last layer, which should be the ONLY node there anyways
-	return _layersAndNodes[NUM_LAYERS-1][0];
+	// Take the 40 inputs from the original results and multiply them by each node's weights that are in weightArrs1
+	// Put the results into a vector that each entry is the averaging of each weight's result
+#pragma loop(hint_parallel(8))
+	for (int ii = 0; ii < LAYER_3_SIZE; ++ii) // 10 nodes
+	{
+		resultArrs1.push_back(0);
+		vector<float>::iterator weights1ItrInner;
+		weights1ItrInner = weightArrs1[ii].begin();
+		for (int jj = 0; jj < LAYER_2_SIZE; ++jj) // 40 weights per node
+		{
+			*(resultArrs1.begin() + ii) += *(weights1ItrInner+jj) * *(resultArrs0.begin()+jj);
+		}
+		*(resultArrs1.begin() + ii) /= LAYER_2_SIZE; // divide by the 40 weights
+		//cout << "resultArrs1[ii]: " << resultArrs1[ii] << endl;
+	}
+
+	// Take the 10 inputs from the second results and multiply them by each node's weights that are in weightArrs2
+	// Put the results into a float that is the averaging of each weight's result
+	finalResult = 0;
+#pragma loop(hint_parallel(8))
+	for (int ii = 0; ii < LAYER_4_SIZE; ++ii)
+	{
+		finalResult += *(weightArrs2.begin()+ii) * *(resultArrs1.begin()+ii);
+	}
+	finalResult /= weightArrs2.size();
+	//cout << "finalResult: " << finalResult << endl;
+
+	return finalResult;
+}
+
+void NeuralNetwork::gameWon()
+{
+	m_points += 1;
+}
+
+void NeuralNetwork::gameLost()
+{
+	m_points -= 2;
 }

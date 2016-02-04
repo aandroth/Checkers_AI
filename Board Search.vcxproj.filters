@@ -41,5 +41,8 @@
     <ClInclude Include="PlayerDriver.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="321_2_3_2016.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -18,6 +18,10 @@ using std::fstream;
 using std::vector;
 using std::pair;
 using namespace std;//used for the ios:: commands
+#include <fstream>
+using std::ifstream;
+using std::ofstream;
+//#include <vld.h>
 
 #include <map>
 using std::map;
@@ -30,6 +34,12 @@ using std::map;
 //Each move will be tested recursively, first testing for jumps, 
 //and if no jumps can be done, then test for moves.
 
+/*
+Notes:
+Need to get rid of all [] operations with the vectors, especially inside of the BEF
+Need to make sure that the cache isn't exceeded, or it's going to go out to disc
+Need to change the move evaluator to not allow jumps after a pawn is kinged
+*/
 
 //Because of the way the code is structured, a max ply of n needs to be n+1 
 int MAX_PLY = 3;
@@ -67,9 +77,7 @@ float enemyMoveRecurse(int square, float CUR_MAX, int CUR_PLY, int *);
 void switchBoard(int *);//, WeightArrs);
 void boardDisplay(vector<int>);
 void squareDisplay(int, vector<int>);
-vector<int> vectorizeBoard(int[]);
-int* unvectorizeBoard(vector<int>);
-int decideWinner(float TEMP_VAL_R, float TEMP_VAL_W, int * board);
+void createNeuralNetworkChildFromFileNumber_ByValue_ToFileNumber(int, float, int);
 
 // Functions to modify the tree
 void sendValueToAncestors(TreeNode *, map<string, TreeNode> *);
@@ -77,30 +85,11 @@ bool parentIsLastChildOfGrandparent(string, map<string, TreeNode> *);
 string keyOfNextValidNode(string, map<string, TreeNode> *);
 string keyOfNextSibling(string, map<string, TreeNode> *);
 
-//variables to hold values we may change (hard code)
-//const int LAYER_1 = 32;
-//const int LAYER_2 = 40;
-//const int LAYER_3 = 10;
-//const int LAYER_4 = 1;
-struct WeightArrs
-{
-	//these are the arrays to hold the weights
-	float arr1[LAYER_2][LAYER_1];
-	float arr2[LAYER_3][LAYER_2];
-	float arr3[LAYER_4][LAYER_3];
-	int score;
-};
-
-void fillArrs(WeightArrs &);
-
 //pointer to save boards
 int tempBoard[32];
 
-WeightArrs RED_PLAYER;
-WeightArrs WHI_PLAYER;
-
-NeuralNetwork NN_R(RED_PLAYER.arr1, RED_PLAYER.arr2, RED_PLAYER.arr3);
-NeuralNetwork NN_W(WHI_PLAYER.arr1, WHI_PLAYER.arr2, WHI_PLAYER.arr3);
+NeuralNetwork NN_R;
+NeuralNetwork NN_W;
 
 int turn;
 
@@ -117,9 +106,84 @@ int main()
 	//fillArrs(RED_PLAYER);
 	//fillArrs(WHI_PLAYER);
 
+	// Fill Weights
 	//NN_R.fillWeights(RED_PLAYER.arr1, RED_PLAYER.arr2, RED_PLAYER.arr3);
 	//NN_W.fillWeights(WHI_PLAYER.arr1, WHI_PLAYER.arr2, WHI_PLAYER.arr3);
+	//
+	//vector<vector<float>> weightArrs0, weightArrs1;
+	//vector<float> weightArrs2;
 
+	//srand(clock());
+
+	//for (int kk = 9; kk < 12; ++kk)
+	//{
+	//	// For 40 nodes, create 32 weights each
+	//	for (int ii = 0; ii < 40; ++ii)
+	//	{
+	//		vector<float> tempVec;
+	//		for (int jj = 0; jj < 32; ++jj)
+	//		{
+	//			tempVec.push_back(std::rand() % 100 / 100.0);
+	//		}
+	//		weightArrs0.push_back(tempVec);
+	//	}
+	//	// For 10 nodes, create 40 weights each
+	//	for (int ii = 0; ii < 10; ++ii)
+	//	{
+	//		vector<float> tempVec;
+	//		for (int jj = 0; jj < 40; ++jj)
+	//		{
+	//			tempVec.push_back(std::rand() % 100 / 100.0);
+	//		}
+	//		weightArrs1.push_back(tempVec);
+	//	}
+	//	// For 1 node, create 10 weights
+	//	for (int ii = 0; ii < 10; ++ii)
+	//	{
+	//		weightArrs2.push_back(std::rand() % 100 / 100.0);
+	//	}
+
+	//	ofstream outFile;
+	//	string outFileName = "NNs/NN_" + to_string(kk) + ".txt";
+	//	outFile.open(outFileName);
+	//	outFile << 0 << " ";
+	//	outFile << 0 << " ";
+
+	//	// For 40 nodes, send each one's 32 weights to file
+	//	for (int ii = 0; ii < 40; ++ii)
+	//	{
+	//		vector<float> tempVec;
+	//		for (int jj = 0; jj < 32; ++jj)
+	//		{
+	//			outFile << to_string(weightArrs0[ii][jj]) << " ";
+	//		}
+	//	}
+	//	// For 10 nodes, send each one's 40 weights to file
+	//	for (int ii = 0; ii < 10; ++ii)
+	//	{
+	//		vector<float> tempVec;
+	//		for (int jj = 0; jj < 40; ++jj)
+	//		{
+	//			outFile << to_string(weightArrs1[ii][jj]) << " ";
+	//		}
+	//	}
+	//	// For 1 node, send its 10 weights to file
+	//	for (int ii = 0; ii < 10; ++ii)
+	//	{
+	//		outFile << to_string(weightArrs2[ii]) << " ";
+	//	}
+
+	//	weightArrs0.clear();
+	//	weightArrs1.clear();
+	//	weightArrs2.clear();
+
+	//	clock_t goalTime = (clock_t)1000 + clock();
+	//	while (goalTime > clock())
+	//	{
+	//	}
+
+	//}
+	
 	int * currBoard;
 	
 	//take board
@@ -127,31 +191,137 @@ int main()
 	int pieceMovedIndex, movedToPosition;
 	// Starting board
 	vector<int> board;
-	for (int ii = 0; ii < 32; ++ii)
+	for (int ii = 0; ii < 12; ++ii)
+	{
+		board.push_back(1);
+	}
+	for (int ii = 0; ii < 8; ++ii)
 	{
 		board.push_back(0);
 	}
-	board[3] = 1;
-	board[13] = -1;
-	board[14] = -1;
-	board[17] = 2;
-	board[31] = -2;
-	board[20] = -1;
-	board[21] = -1;
-	board[22] = -1;
-	board[23] = -1;
+	for (int ii = 0; ii < 12; ++ii)
+	{
+		board.push_back(-1);
+	}
 
-	Player redPlayer;
+	//boardDisplay(board);
+	/*
+	std::shared_ptr<MoveResultArray> _moveResArr(new MoveResultArray);
+	_moveResArr->assignTables();
 
-	for (int ii = 0; ii < 10; ++ii)
+	vector<int> boardCopy;
+	int battleCount = 0;
+	while (true)
+	{
+		for (int ii = 0; ii < 100; ++ii)
+		{
+			boardCopy = board;
+			cout << "Battle " << battleCount << ":" << endl;
+
+			// Pick a NN in the order of the for loop
+			// Randomly pick an opponent
+			// Create two players, red and white
+			RedPlayer redPlayer(ii, _moveResArr);
+			int counterNN = std::rand() % 100;
+			WhitePlayer whitePlayer(counterNN, _moveResArr);
+			//cout << "Picked counter NN " << counterNN << endl;
+
+			// Have each one take a turn, for a total of 100 turns, or until a winner is found
+			bool winnerUndetermined = true;
+			for (int jj = 0; jj < 100 && winnerUndetermined; ++jj)
+			{
+				//cout << "turn " << jj << endl;
+				redPlayer.beginBoardEvaluation(boardCopy);
+				boardCopy = redPlayer.returnBestBoard();
+
+				if (redPlayer.lostGame(boardCopy))
+				{
+					winnerUndetermined = false;
+					redPlayer.NN.gameLost();
+					whitePlayer.NN.gameWon();
+					cout << "White wins" << endl;
+				}
+				//boardDisplay(boardCopy);
+
+				whitePlayer.beginBoardEvaluation(boardCopy);
+				boardCopy = whitePlayer.returnBestBoard();
+				if (whitePlayer.lostGame(boardCopy))
+				{
+					winnerUndetermined = false;
+					redPlayer.NN.gameWon();
+					whitePlayer.NN.gameLost();
+					cout << "Red wins" << endl;
+				}
+				//boardDisplay(boardCopy);
+			}
+
+			// Save the NNs back to their files
+			redPlayer.NN.writeWeightsToFileNumber(ii);
+			whitePlayer.NN.writeWeightsToFileNumber(counterNN);
+			++battleCount;
+			boardDisplay(boardCopy);
+		}*/
+		
+		// Create an array of pairs: the NNs rank and index
+		vector <pair<int, int>> battleRankVec;
+		for (int ii = 0; ii < 100; ++ii)
+		{
+			string fileName = "NNs/NN_" + std::to_string(ii) + ".txt";
+
+			std::ifstream inFile(fileName);
+			string tempString;
+			// Read in first number of the NN
+			inFile >> tempString;
+			// put the number into the pair, along with the index
+			battleRankVec.push_back(std::make_pair(stoi(tempString), ii));
+			//cout << battleRankVec[ii].first << endl;
+		}
+		// Sort the array by the first value of each pair
+		std::sort(battleRankVec.rbegin(), battleRankVec.rend());
+		cout << endl;
+
+		for (int ii = 0; ii < battleRankVec.size(); ++ii)
+		{
+			cout << battleRankVec[ii].first << ", " << battleRankVec[ii].second << endl;
+			// Spawn children from each of the top 50 NNs, overwriting the bottom 50
+		}
+		createNeuralNetworkChildFromFileNumber_ByValue_ToFileNumber(6, 0.2, 5);
+
+	
+	//}
+	// Go through each neural network in the NNs folder, and put it into an array
+	// Sort the array by the NNs rank
+
+	// Grab a neural network from the array of neural networks
+	// Put one in the redPlayer
+	//RedPlayer redPlayer;
+	// Put one in the whitePlayer
+	//WhitePlayer whitePlayer;
+
+
+
+	//boardDisplay(board);
+	// Play the game
+	// 100 moves is a draw
+	// 10 seconds per turn
+	// return if found the end, or run out of moves to check
+	// 
+	/*
+	for (int ii = 0; ii < 1; ++ii)
 	{
 		redPlayer.beginBoardEvaluation(board);
 		board = redPlayer.returnBestBoard();
-		//boardDisplay(board);
+		boardDisplay(board);
+		whitePlayer.beginBoardEvaluation(board);
+		board = whitePlayer.returnBestBoard();
+		boardDisplay(board);
 	}
+	*/
+	// Base the rank on the outcome and the NNs rank
+	// Write the new rank back to the NN's file
+	 
+	// 
 
-
-	
 	/*
 	// TEST
 	//create a tree with three layers
@@ -297,104 +467,87 @@ void squareDisplay(int ii, vector<int> board)
 			SetConsoleTextAttribute(hConsole, 3); 
 }
 
-//switchBoard
-//
-//Function that will change the board so that the other NN can take its turn
-//
-//Pre:	The current board
-//Post: None
-//
-void switchBoard(int * board)
+
+void createNeuralNetworkChildFromFileNumber_ByValue_ToFileNumber(int parentFileNumber, float maxChangeAmount, int fileNumber)
 {
-	int temp[32];
+	int intMaxChangeAmount = (int)(maxChangeAmount * 200);
+	std::shared_ptr<NeuralNetwork> newNeuralNetworkPtr(new NeuralNetwork);
+	newNeuralNetworkPtr->fillWeightsFromFileNumber(parentFileNumber);
 
-	for(int ii = 0; ii<32; ii++)
+	for (int ii = 0; ii < newNeuralNetworkPtr->weightArrs0.size(); ++ii)
 	{
-		temp[31-ii] = (board[ii]*(-1));	
-	}
-
-	for(int ii = 0; ii<32; ii++)
-	{
-		board[ii] = temp[ii];	
-	}
-}
-
-
-//decideWinner
-//
-//Function that will decide which NN won the game, or if it's a draw
-//
-//Pre:	The final return value of both boards
-//Post: Returns an int that signifies the outcome
-//		1: Red Won
-//		2: White Won
-//		3: A Draw
-//
-int decideWinner(float TEMP_VAL_R, float TEMP_VAL_W, int * board)
-{
-	//if there is a draw
-	if(TEMP_VAL_R == -900 || TEMP_VAL_W == -900)
-	{
-		return 3;
-	}
-
-	//if red has lost
-	else if(TEMP_VAL_R == -1000)
-	{
-		return 2;
-	}
-
-	//if white has lost
-	else if(TEMP_VAL_W == -1000)
-	{
-		return 1;
-	}
-
-	int total = 0;
-
-	//if there are no clear winners we see who has the most (and best) pieces on the board and use that to deermine a winner
-	for(int ii = 0; ii < 32; ii++)
-		total += board[ii];
-
-	if(total > 0)
-		return 3;
-
-	else if(total < 0)
-		return 2;
-
-	else
-		return 3;
-}
-
-
-//fillArrs
-//
-//Function that will a WeightArrs with  
-//
-//Pre:	A WeightArrs object
-//Post: None
-//
-void fillArrs(WeightArrs &player)
-{
-	for(int ii = 0; ii < 40; ii++)
-	{
-		for(int jj = 0; jj < 32; jj++)
+		for (int jj = 0; jj < newNeuralNetworkPtr->weightArrs0[ii].size(); ++jj)
 		{
-			player.arr1[ii][jj] = static_cast<float>((rand()%5)-0.4);
+			newNeuralNetworkPtr->weightArrs0[ii][jj] += ((float)(std::rand() % intMaxChangeAmount / 100.0) - maxChangeAmount);
+
+			if (newNeuralNetworkPtr->weightArrs0[ii][jj] < 0.0)
+			{
+				newNeuralNetworkPtr->weightArrs0[ii][jj] = 0.0;
+			}
+			else if (newNeuralNetworkPtr->weightArrs0[ii][jj] > 1.0)
+			{
+				newNeuralNetworkPtr->weightArrs0[ii][jj] = 1.0;
+			}
 		}
 	}
-	for(int ii = 0; ii < 10; ii++)
+
+	for (int ii = 0; ii < newNeuralNetworkPtr->weightArrs1.size(); ++ii)
 	{
-		for(int jj = 0; jj < 40; jj++)
+		for (int jj = 0; jj < newNeuralNetworkPtr->weightArrs1[ii].size(); ++jj)
 		{
-			player.arr2[ii][jj] = static_cast<float>((rand()%5)-0.4);
+			newNeuralNetworkPtr->weightArrs1[ii][jj] += ((float)(std::rand() % intMaxChangeAmount / 100.0) - maxChangeAmount);
+
+			if (newNeuralNetworkPtr->weightArrs1[ii][jj] < 0.0)
+			{
+				newNeuralNetworkPtr->weightArrs1[ii][jj] = 0.0;
+			}
+			else if (newNeuralNetworkPtr->weightArrs1[ii][jj] > 1.0)
+			{
+				newNeuralNetworkPtr->weightArrs1[ii][jj] = 1.0;
+			}
 		}
 	}
-	for(int ii = 0; ii < 1; ii++)
+
+	for (int ii = 0; ii < newNeuralNetworkPtr->weightArrs2.size(); ++ii)
 	{
-		for(int jj = 0; jj < 10; jj++)
+		newNeuralNetworkPtr->weightArrs2[ii] += ((float)(std::rand() % intMaxChangeAmount / 100.0) - maxChangeAmount);
+		if (newNeuralNetworkPtr->weightArrs2[ii] < 0.0)
 		{
-			player.arr3[ii][jj] = static_cast<float>((rand()%5)-0.4);
+			newNeuralNetworkPtr->weightArrs2[ii] = 0.0;
 		}
+		else if (newNeuralNetworkPtr->weightArrs2[ii] > 1.0)
+		{
+			newNeuralNetworkPtr->weightArrs2[ii] = 1.0;
+		}
+	}
+
+	string fileName = "NNs/NN_" + to_string(fileNumber) + ".txt";
+	ofstream outFile;
+	outFile.open(fileName);
+	outFile << to_string(0.0) << " ";
+	outFile << to_string(0.0) << " ";
+
+	// For 40 nodes, create 32 weights each
+	for (int ii = 0; ii < 40; ++ii)
+	{
+		vector<float> tempVec;
+		for (int jj = 0; jj < 32; ++jj)
+		{
+			outFile << to_string(newNeuralNetworkPtr->weightArrs0[ii][jj]) << " ";
+		}
+	}
+	// For 10 nodes, create 40 weights each
+	for (int ii = 0; ii < 10; ++ii)
+	{
+		vector<float> tempVec;
+		for (int jj = 0; jj < 40; ++jj)
+		{
+			outFile << to_string(newNeuralNetworkPtr->weightArrs1[ii][jj]) << " ";
+		}
+	}
+	// For 1 node, create 10 weights
+	for (int ii = 0; ii < 10; ++ii)
+	{
+		outFile << to_string(newNeuralNetworkPtr->weightArrs2[ii]) << " ";
 	}
 }
