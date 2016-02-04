@@ -493,8 +493,44 @@ vector<vector<int>> Player::redJump(std::shared_ptr<MoveResultArray> _moveResult
 		currPosition = piecePositions[ii];
 		foundJump = 0;
 
-		int tempInt = _moveResultArray->jumpsDown[currPosition].left;
-		int enemyPos = _moveResultArray->movesDown[currPosition].left;
+		int tempInt = 0;
+		int enemyPos = 0; 
+		if (board[index] > 1)
+		{
+			tempInt = _moveResultArray->jumpsUp[currPosition].left;
+			enemyPos = _moveResultArray->movesUp[currPosition].left;
+			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] < 0)
+			{
+				//cout << "jumpsUp[currPosition].left" << endl;
+				//cout << "Jumping from " << currPosition << " to " << tempInt << " over " << enemyPos << endl;
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+				//boardDisplay(boardCopy);
+
+				evaluationBoards.push_back(boardCopy);
+				piecePositions.push_back(tempInt);
+				foundJump = 1;
+				boardCopy = evaluationBoards[ii];
+			}
+			tempInt = _moveResultArray->jumpsUp[currPosition].right;
+			enemyPos = _moveResultArray->movesUp[currPosition].right;
+			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] < 0)
+			{
+				//cout << "jumpsUp[currPosition].right" << endl;
+				//cout << "Jumping from " << currPosition << " to " << tempInt << endl;
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+				//boardDisplay(boardCopy);
+
+				evaluationBoards.push_back(boardCopy);
+				piecePositions.push_back(tempInt);
+				foundJump = 1;
+			}
+		}
+		tempInt = _moveResultArray->jumpsDown[currPosition].left;
+		enemyPos = _moveResultArray->movesDown[currPosition].left;
 		if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] < 0)
 		{
 			//cout << "jumpsDown[currPosition].left" << endl;
@@ -535,40 +571,6 @@ vector<vector<int>> Player::redJump(std::shared_ptr<MoveResultArray> _moveResult
 			evaluationBoards.push_back(boardCopy);
 			piecePositions.push_back(tempInt);
 			boardCopy = evaluationBoards[ii];
-		}
-		if (board[index] > 1)
-		{
-			tempInt = _moveResultArray->jumpsUp[currPosition].left;
-			enemyPos = _moveResultArray->movesUp[currPosition].left;
-			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] < 0)
-			{
-				//cout << "jumpsUp[currPosition].left" << endl;
-				//cout << "Jumping from " << currPosition << " to " << tempInt << " over " << enemyPos << endl;
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-				//boardDisplay(boardCopy);
-
-				evaluationBoards.push_back(boardCopy);
-				piecePositions.push_back(tempInt);
-				foundJump = 1;
-				boardCopy = evaluationBoards[ii];
-			}
-			tempInt = _moveResultArray->jumpsUp[currPosition].right;
-			enemyPos = _moveResultArray->movesUp[currPosition].right;
-			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] < 0)
-			{
-				//cout << "jumpsUp[currPosition].right" << endl;
-				//cout << "Jumping from " << currPosition << " to " << tempInt << endl;
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-				//boardDisplay(boardCopy);
-
-				evaluationBoards.push_back(boardCopy);
-				piecePositions.push_back(tempInt);
-				foundJump = 1;
-			}
 		}
 
 		if (!foundJump && ii != 0)
@@ -674,8 +676,45 @@ vector<vector<int>> Player::whiteJump(std::shared_ptr<MoveResultArray> _moveResu
 		currPosition = piecePositions[ii];
 		foundJump = 0;
 
-		int tempInt = _moveResultArray->jumpsUp[currPosition].left;
-		int enemyPos = _moveResultArray->movesUp[currPosition].left;
+		int tempInt = 0;
+		int enemyPos = 0;
+		if (board[index] < -1)
+		{
+			tempInt = _moveResultArray->jumpsDown[currPosition].left;
+			enemyPos = _moveResultArray->movesDown[currPosition].left;
+			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] > 0)
+			{
+				//cout << "jumpsdown[currPosition].left" << endl;
+				//cout << "Jumping from " << currPosition << " to " << tempInt << " over " << enemyPos << endl;
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+				//boardDisplay(boardCopy);
+
+				evaluationBoards.push_back(boardCopy);
+				piecePositions.push_back(tempInt);
+				foundJump = 1;
+				boardCopy = evaluationBoards[ii];
+			}
+			tempInt = _moveResultArray->jumpsDown[currPosition].right;
+			enemyPos = _moveResultArray->movesDown[currPosition].right;
+			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] > 0)
+			{
+				//cout << "jumpsdown[currPosition].right" << endl;
+				//cout << "Jumping from " << currPosition << " to " << tempInt << endl;
+				boardCopy[tempInt] = boardCopy[currPosition];
+				boardCopy[enemyPos] = 0;
+				boardCopy[currPosition] = 0;
+				//boardDisplay(boardCopy);
+
+				evaluationBoards.push_back(boardCopy);
+				piecePositions.push_back(tempInt);
+				foundJump = 1;
+			}
+		}
+
+		tempInt = _moveResultArray->jumpsUp[currPosition].left;
+		enemyPos = _moveResultArray->movesUp[currPosition].left;
 		if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] > 0)
 		{
 			//cout << "jumpsup[currPosition].left" << endl;
@@ -716,40 +755,6 @@ vector<vector<int>> Player::whiteJump(std::shared_ptr<MoveResultArray> _moveResu
 			evaluationBoards.push_back(boardCopy);
 			piecePositions.push_back(tempInt);
 			boardCopy = evaluationBoards[ii];
-		}
-		if (board[index] < -1)
-		{
-			tempInt = _moveResultArray->jumpsDown[currPosition].left;
-			enemyPos = _moveResultArray->movesDown[currPosition].left;
-			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] > 0)
-			{
-				//cout << "jumpsdown[currPosition].left" << endl;
-				//cout << "Jumping from " << currPosition << " to " << tempInt << " over " << enemyPos << endl;
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-				//boardDisplay(boardCopy);
-
-				evaluationBoards.push_back(boardCopy);
-				piecePositions.push_back(tempInt);
-				foundJump = 1;
-				boardCopy = evaluationBoards[ii];
-			}
-			tempInt = _moveResultArray->jumpsDown[currPosition].right;
-			enemyPos = _moveResultArray->movesDown[currPosition].right;
-			if (tempInt != -1 && boardCopy[tempInt] == 0 && boardCopy[enemyPos] > 0)
-			{
-				//cout << "jumpsdown[currPosition].right" << endl;
-				//cout << "Jumping from " << currPosition << " to " << tempInt << endl;
-				boardCopy[tempInt] = boardCopy[currPosition];
-				boardCopy[enemyPos] = 0;
-				boardCopy[currPosition] = 0;
-				//boardDisplay(boardCopy);
-
-				evaluationBoards.push_back(boardCopy);
-				piecePositions.push_back(tempInt);
-				foundJump = 1;
-			}
 		}
 
 		if (!foundJump && ii != 0)
