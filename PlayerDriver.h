@@ -36,11 +36,6 @@ public:
 
 	Player()
 	{
-		/*m_streamToFile.open("Output.txt");
-		m_streamToFile << "";
-		m_streamToFile.close();
-		m_streamToFile.open("Output.txt", std::ios_base::app);
-		*/
 	}
 	~Player()
 	{
@@ -52,9 +47,7 @@ public:
 	int returnBestBoardValue();
 
 	void createRedMoveGeneration(string, std::shared_ptr<map<string, TreeNode>>);
-	void createRedJumpGeneration(string, std::shared_ptr<map<string, TreeNode>>);
 	void createWhiteMoveGeneration(string, std::shared_ptr<map<string, TreeNode>>);
-	void createWhiteJumpGeneration(string, std::shared_ptr<map<string, TreeNode>>);
 	vector<int> reverseBoard(vector<int>);
 	void wonGame();
 
@@ -104,12 +97,12 @@ public:
 
 		for (int ii = 0; ii < 2; ++ii)
 		{
-			cout << "Red: figuring out red generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
+			//cout << "Red: figuring out red generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
 			foundJumpThisTurn = false;
 			//m_streamToFile << "Red's turn" << endl;
 			createRedMoveGeneration(keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr), m_boardTreeMapPtr);
 
-			cout << "Red: figuring out white generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
+			//cout << "Red: figuring out white generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
 			foundJumpThisTurn = false;
 			createWhiteMoveGeneration(keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr), m_boardTreeMapPtr);
 		}
@@ -117,7 +110,7 @@ public:
 
 	bool lostGame(vector<int> board)
 	{
-		cout << board.size() << endl;
+		//cout << board.size() << endl;
 		for (int ii = 0; ii < board.size(); ++ii)
 		{
 			if (board[ii] > 0)
@@ -163,11 +156,11 @@ public:
 		for (int ii = 0; ii < 2; ++ii)
 		{
 			//m_streamToFile << "White's turn" << endl;
-			cout << "White: figuring out white generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
+			//cout << "White: figuring out white generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
 			foundJumpThisTurn = false;
 			createWhiteMoveGeneration(keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr), m_boardTreeMapPtr);
 			
-			cout << "White: figuring out red generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
+			//cout << "White: figuring out red generation " << ii << " from node " << keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr) << endl;
 			foundJumpThisTurn = false;
 			createRedMoveGeneration(keyOfLeftmostDeepestLeafFromNode("_0", m_boardTreeMapPtr), m_boardTreeMapPtr);
 		}

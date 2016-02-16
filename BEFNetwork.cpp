@@ -27,12 +27,11 @@ NeuralNetwork::NeuralNetwork()
 void NeuralNetwork::fillWeightsFromFileNumber(int fileNumber)
 {
 	string fileName = "NNs/NN_" + std::to_string(fileNumber) + ".txt";
-	cout << fileName << endl;
+	//cout << fileName << endl;
 
 	std::ifstream inFile(fileName);
 	string tempString, fileString;
-	int state = 0, countChar = 0, countLine = 0;
-	vector<float> tempVec;
+	int state = 0, countChar = 0, stateLimit1 = LAYER_1_SIZE*LAYER_2_SIZE, stateLimit2 = LAYER_2_SIZE*LAYER_3_SIZE, stateLimit3 = LAYER_3_SIZE;
 	while (inFile >> tempString)
 	{
 		switch (state)
@@ -50,81 +49,66 @@ void NeuralNetwork::fillWeightsFromFileNumber(int fileNumber)
 			}
 			break;
 		case 1:
-			tempVec.push_back(std::stof(tempString));
-			if (countChar == LAYER_1_SIZE) // 32 weights
+			if (countChar <= stateLimit1) // 32 weights * 40 nodes
 			{
-				weightArrs0.push_back(tempVec);
-				tempVec.clear();
-				countChar = 0;
-				++countLine;
+				weightArr0.push_back(std::stof(tempString));
 			}
-			if (countLine == LAYER_2_SIZE) // 40 nodes
+			else
 			{
-				countLine = 0;
+				countChar = 1;
 				state = 2;
+				weightArr1.push_back(std::stof(tempString));
 			}
 			break;
 		case 2:
-			tempVec.push_back(std::stof(tempString));
-
-			if (countChar == LAYER_2_SIZE) // 40 weights
+			if (countChar <= stateLimit2) // 40 weights * 10 nodes
 			{
-				weightArrs1.push_back(tempVec);
-				tempVec.clear();
-				countChar = 0;
-				++countLine;
+				weightArr1.push_back(std::stof(tempString));
 			}
-			if (countLine == LAYER_3_SIZE) // 10 nodes
+			else
 			{
-				countLine = 0;
+				countChar = 1;
 				state = 3;
+				weightArr2.push_back(std::stof(tempString));
 			}
 			break;
 		case 3:
-			tempVec.push_back(std::stof(tempString));
-
-			if (countChar == LAYER_3_SIZE) // 10 weights for 1 node
+			if (countChar <= stateLimit3) // 10 weights for 1 node
 			{
-				weightArrs2 = tempVec;
-				countChar = 0;
+				weightArr2.push_back(std::stof(tempString));
 			}
 			break;
 		}
 		++countChar;
 	}
 
-	/*
 	// For 40 nodes, create 32 weights each
-	for (int ii = 0; ii < 40; ++ii)
+	/*for (int ii = 0; ii < 40*32; ++ii)
 	{
-		for (int jj = 0; jj < 32; ++jj)
-		{
-			//cout << std::to_string(weightArrs0[ii][jj]) << " ";
-		}
+			cout << std::to_string(weightArr0[ii]) << " ";
 	}
 	// For 10 nodes, create 40 weights each
-	for (int ii = 0; ii < 10; ++ii)
+	for (int ii = 0; ii < 10*40; ++ii)
 	{
-		for (int jj = 0; jj < 40; ++jj)
-		{
-			//cout << std::to_string(weightArrs1[ii][jj]) << " ";
-		}
+			cout << std::to_string(weightArr1[ii]) << " ";
 	}
 	// For 1 node, create 10 weights
 	for (int ii = 0; ii < 10; ++ii)
 	{
-		cout << std::to_string(weightArrs2[ii]) << " " << endl;;
+		cout << std::to_string(weightArr2[ii]) << " " << endl;;
 	}*/
 }
 
 void NeuralNetwork::writeWeightsToFileNumber(int fileNumber)
 {
-	string fileName = "NNs/NN_" + to_string(fileNumber) + ".txt";
+	/*string fileName = "NNs/NN_" + to_string(fileNumber) + ".txt";
 	ofstream outFile;
 	outFile.open(fileName);
 	outFile << to_string(m_points) << " ";
 	outFile << to_string(m_class) << " ";
 
+	//vector<float>::iterator weightsItr;
+	//weightsItr = weightArrs0.begin();
 	// For 40 nodes, create 32 weights each
 	for (int ii = 0; ii < 40; ++ii)
 	{
@@ -132,8 +116,10 @@ void NeuralNetwork::writeWeightsToFileNumber(int fileNumber)
 		for (int jj = 0; jj < 32; ++jj)
 		{
 			outFile << to_string(weightArrs0[ii][jj]) << " ";
+			//outFile << to_string(*(weightsItr +ii)) << " ";
 		}
 	}
+	//weightsItr = weightArrs1.begin();
 	// For 10 nodes, create 40 weights each
 	for (int ii = 0; ii < 10; ++ii)
 	{
@@ -141,17 +127,20 @@ void NeuralNetwork::writeWeightsToFileNumber(int fileNumber)
 		for (int jj = 0; jj < 40; ++jj)
 		{
 			outFile << to_string(weightArrs1[ii][jj]) << " ";
+			//outFile << to_string(*(weightsItr + ii)) << " ";
 		}
 	}
+	//weightsItr = weightArrs2.begin();
 	// For 1 node, create 10 weights
 	for (int ii = 0; ii < 10; ++ii)
 	{
 		outFile << to_string(weightArrs2[ii]) << " ";
-	}
+		//outFile << to_string(*(weightsItr + ii)) << " " << " ";
+	}*/
 }
 
 float NeuralNetwork::computeScoreForBoard(vector<int> inputArray)
-{
+{/*
 	//These are all used in the computeBoardScore function
 	int currentLayer;
 	int previousLayer;
@@ -159,53 +148,79 @@ float NeuralNetwork::computeScoreForBoard(vector<int> inputArray)
 	int currentWeight;
 	int weightCount;
 
-	vector<float> resultArrs0, resultArrs1;
-	float finalResult;
+	vector<float> resultArrs0(40), resultArrs1(10);
+	float finalResult = 0.0;
 	// Take the 32 inputs from the Board and multiply them by each node's weights that are in weightArrs0
 	// Put the results into a vector that each entry is the averaging of each weight's result
-#pragma loop(hint_parallel(8))
+	vector<float>::iterator weightsItr, resultsItr0, resultsItr1, inputItr;
+	vector<int>::iterator inputBoardItr;
+	weightsItr = weightArr0.begin();
+	inputBoardItr = inputArray.begin();
+	resultsItr0 = resultArrs0.begin();
+
 	for (int ii = 0; ii < LAYER_2_SIZE; ++ii) // 40 nodes
 	{
-		resultArrs0.push_back(0);
-		vector<float>::iterator weights0ItrInner;
-		weights0ItrInner = weightArrs0[ii].begin();
 		for (int jj = 0; jj < LAYER_1_SIZE; ++jj) // 32 weights per node
 		{
-			*(resultArrs0.begin() + ii) += *(weightArrs0[ii].begin() + jj) * *(inputArray.begin() + jj);
-			//resultArrs0[ii] += weightArrs0[ii][jj] * inputArray[jj];
+			*(resultsItr0 + ii) += *(weightsItr + ii*LAYER_1_SIZE + jj) * *(inputBoardItr + jj);
 		}
-		*(resultArrs0.begin() + ii) /= LAYER_1_SIZE; // divide by the 32 weights
-		//cout << "resultArrs0[ii]: " << resultArrs0[ii] << endl;
+		// Sigmoid Function
+		*(resultsItr0 + ii) = *(resultsItr0 + ii) / (1 + abs(*(resultsItr0 + ii)));
+		//*(resultsItr0 + ii) = 1 / (1 + exp(-(*(resultsItr0 + ii))));
+		if (!(*(resultsItr0 + ii) > 0.0))
+		{
+			*(resultsItr0 + ii) = 0.0;
+		}
+		else
+		{
+			*(resultsItr0 + ii) = 1.0;
+		}
+		//*(resultsItr0 + ii) = (*(resultsItr0 + ii) + (abs(*(resultsItr0 + ii)))) / (2 * *(resultsItr0 + ii));
+		//*(resultsItr0 + ii)  = ((*(resultsItr0 + ii) AND -1) OR 1) * 0.5
+		cout << "resultsItr0[" << ii << "]: " << *(resultsItr0 + ii) << endl;
 	}
-
+	
 	// Take the 40 inputs from the original results and multiply them by each node's weights that are in weightArrs1
 	// Put the results into a vector that each entry is the averaging of each weight's result
-#pragma loop(hint_parallel(8))
+	weightsItr = weightArr1.begin();
+	inputItr = resultArrs0.begin();
+	resultsItr1 = resultArrs1.begin();
 	for (int ii = 0; ii < LAYER_3_SIZE; ++ii) // 10 nodes
 	{
-		resultArrs1.push_back(0);
-		vector<float>::iterator weights1ItrInner;
-		weights1ItrInner = weightArrs1[ii].begin();
 		for (int jj = 0; jj < LAYER_2_SIZE; ++jj) // 40 weights per node
 		{
-			*(resultArrs1.begin() + ii) += *(weights1ItrInner+jj) * *(resultArrs0.begin()+jj);
+			*(resultsItr1 + ii) += *(weightsItr + ii*LAYER_2_SIZE + jj) * *(resultsItr0 + jj);
 		}
-		*(resultArrs1.begin() + ii) /= LAYER_2_SIZE; // divide by the 40 weights
+		// Sigmoid Function
+		//*(resultArrs1.begin() + ii) /= LAYER_2_SIZE; // divide by the 40 weights
 		//cout << "resultArrs1[ii]: " << resultArrs1[ii] << endl;
+		*(resultsItr1 + ii) = *(resultsItr1 + ii) / (1 + abs(*(resultsItr1 + ii)));
+		if (!(*(resultsItr1 + ii) > 0.0))
+		{
+			*(resultsItr1 + ii) = 0.0;
+		}
+		else
+		{
+			*(resultsItr1 + ii) = 1.0;
+		}
 	}
 
 	// Take the 10 inputs from the second results and multiply them by each node's weights that are in weightArrs2
 	// Put the results into a float that is the averaging of each weight's result
-	finalResult = 0;
-#pragma loop(hint_parallel(8))
-	for (int ii = 0; ii < LAYER_4_SIZE; ++ii)
+	weightsItr = weightArr2.begin();
+	resultsItr0 = resultArrs1.begin();
+	for (int ii = 0; ii < LAYER_3_SIZE; ++ii)
 	{
-		finalResult += *(weightArrs2.begin()+ii) * *(resultArrs1.begin()+ii);
+		//finalResult += *(weightArrs2.begin()+ii) * *(resultArrs1.begin()+ii);
+		finalResult += *(weightsItr + ii) * *(resultsItr0 + ii);
+		cout << "finalReult: " << finalResult;
+		cout << ", weightsItr[" << ii << "]: " << *(weightsItr + ii);
+		cout << ", resultsItr0[" << ii << "]: " << *(resultsItr0 + ii) << endl;
 	}
-	finalResult /= weightArrs2.size();
-	//cout << "finalResult: " << finalResult << endl;
-
-	return finalResult;
+	// Sigmoid Function
+	finalResult = finalResult / (1 + abs(finalResult));
+	*/
+	return 0;// finalResult;
 }
 
 void NeuralNetwork::gameWon()
