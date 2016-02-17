@@ -201,43 +201,48 @@ int main()
 
 	vector<int> boardCopy;
 
-	int battleCount = 0, cacheMisses = 0, bigMisses = 0, cacheHit = 0;
+	int battleCount = 0, cacheMisses = 0, bigMisses = 0, cacheHit = 0, runCount = 0;
 	vector<vector<float>> v;
 	float t = 0.0, oldTimer = 0.0;
 	v = createNeuralNetworkLayers();
 	fillNeuralNetworkWeights(&v);
 
-	while (/*t < 1.0 &&*/ battleCount < 1000000)
+	while (runCount < 30)
 	{
-		vector<float> boardIn;
-		for (int bb = 0; bb < 32; ++bb)
+		while (t < 1.0)
 		{
-			boardIn.push_back((std::rand() % 100) / 100.0);
-		}
-		t += evaluateBoard(&v, boardIn);
-		++battleCount;
-		cout << battleCount << endl;
-		cout << t << endl;				
+			vector<float> boardIn;
+			for (int bb = 0; bb < 32; ++bb)
+			{
+				boardIn.push_back((std::rand() % 100) / 100.0);
+			}
+			t += evaluateBoard(&v, boardIn);
+			++battleCount;
+			/*		cout << battleCount << endl;
+					cout << t << endl;	*/
 
-		if ((t - oldTimer) < 0.00001)
-		{
-			++cacheHit;
+			if ((t - oldTimer) < 0.00001)
+			{
+				++cacheHit;
+			}
+			else if ((t - oldTimer) < 0.01)
+			{
+				++cacheMisses;
+			}
+			else
+			{
+				++bigMisses;
+			}
 		}
-		else if ((t - oldTimer) < 0.01)
-		{
-			++cacheMisses;
-		}
-		else
-		{
-			++bigMisses;
-		}
+		t = 0.0;
+		++runCount;
 	}
 
-	cout << "battleCount: " << battleCount << endl;
+	cout << "battleCount: " << battleCount /30 << endl;
 	cout << "time: " << t << endl;	
-	cout << "cacheHit: " << cacheHit << endl;
-	cout << "cacheMisses: " << cacheMisses << endl;
-	cout << "bigMisses: " << bigMisses << endl;
+	cout << "cacheHit: " << cacheHit / 30 << endl;
+	cout << "cacheMisses: " << cacheMisses / 30 << endl;
+	cout << "bigMisses: " << bigMisses / 30 << endl;
 
 
 	/*while (battleCount < 300)
@@ -608,7 +613,7 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 	// Assign the input board to the output pointer so that when the for loop starts it will be put assigned the input pointer
 	outputArrPtr = &inputBoard;
 	inputArrPtr = &arrayHolder;
-
+	int tile = 4;
 	// Loop to go through each layer and multiply its weights by the input
 	for (int rr = 0; rr < totalWeightArrsPtr->size(); ++rr)
 	{
@@ -628,22 +633,30 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 		// Start timer
 		high_resolution_clock::time_point t_begin = high_resolution_clock::now();
 
-		// Assign the input and output index pointers to the first index of the input and output arrays
+		//// Assign the input and output index pointers to the first index of the input and output arrays
 		inputIndexPtr = &(*inputArrPtr)[0];
 		outputIndexPtr = &(*outputArrPtr)[0];
 
 		// Loop to go through each index of the input
-		for (int jj = 0; jj < inputArrSize; ++jj)
+		for (int jj = 0; jj < inputArrSize; jj += tile)
 		{
 			// Assign index ptr to the stating weight index for the current block (node)
 			weightIndexPtr = &(*weightArrPtr)[jj*weightsArrSize];
 			// Loop to go through each weight block (node) in the weights array
-			for (int ii = 0; ii < weightsArrSize; ++ii)
-			{
-				// The arithmetic
-				*(outputIndexPtr + ii) += *(weightIndexPtr + ii) * *(inputIndexPtr + jj);
-				//cout << "outputIndexPtr[" << ii << "] += " << "weightIndexPtr[" << ii << "] * inputIndexPtr[" << jj << "]" << endl;
-				//cout << *(outputIndexPtr + ii) << " += " << *(weightIndexPtr + ii) << " * " << *(inputIndexPtr + jj) << endl;
+			for (int ii = 0; ii < weightsArrSize; ii+=tile)
+			{		
+				for (int bb = jj; bb < min(jj+tile, inputArrSize); ++bb)
+				{
+					//cout << "boundary for bb is " << min(tile, inputArrSize - jj) << endl;
+					for (int aa = ii; aa < min(jj+tile, weightsArrSize); ++aa)
+					{
+						//cout << "boundary for aa is " << min(tile, weightsArrSize - ii) << endl;
+						// The arithmetic
+						*(outputIndexPtr + aa) += *(weightIndexPtr + aa) * *(inputIndexPtr + bb);
+						//cout << "outputIndexPtr[" << ii << "+" << aa << "] += " << "weightIndexPtr[" << ii << "+" << aa << "] * inputIndexPtr[" << jj + bb << "]" << endl;
+						//cout << *(outputIndexPtr + aa) << " += " << *(weightIndexPtr + aa) << " * " << *(inputIndexPtr + bb) << endl;
+					}
+				}
 			}
 		}
 		// Loop to go through the output array
@@ -670,6 +683,21 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 
 	return timer.count();
 }
+
+/*{
+	for (unsigned int i = 1; i < layer.size(); ++i)
+	{
+		for (unsigned int j = 1; j < layer_[i].size(); ++j)
+		{
+			double temp = 0.0;
+			for (unsigned int k = 1; k < layer[i - 1].size(); ++k)
+			{
+				temp += layer_[i - 1][k].value * (layer_[i][j].weights[k]);
+			}
+			layer_[i][j].value = sigmoid(temp);
+		}
+	}
+}*/
 
 /////////////////////////////////////////////////
 ///////////////Begin of helpful functions
