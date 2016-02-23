@@ -218,7 +218,7 @@ int main()
 			}
 			t += evaluateBoard(&v, boardIn);
 			++battleCount;
-			/*		cout << battleCount << endl;
+					/*cout << battleCount << endl;
 					cout << t << endl;	*/
 
 			if ((t - oldTimer) < 0.00001)
@@ -236,6 +236,7 @@ int main()
 		}
 		t = 0.0;
 		++runCount;
+		cout << runCount << endl;
 	}
 
 	cout << "battleCount: " << battleCount /30 << endl;
@@ -602,17 +603,17 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 	// The timing object
 	chrono::duration<float> timer = high_resolution_clock::now() - high_resolution_clock::now();
 	// Pointers to the input, weight, and output array indexes
-	float *inputIndexPtr, *weightIndexPtr, *outputIndexPtr;
+	float *inputIndexPtr, *weightIndexPtr, *outputIndexPtr, weightsSum = 0.0;
 	// Pointers to the input, weight, and output arrays
 	//shared_ptr<vector<float>> ;
 	vector<float> *inputArrPtr, *weightArrPtr, *outputArrPtr;
-	vector<float> arrayHolder;
+	vector<float> arrayHolder0, arrayHolder1 = inputBoard;
 	// Sizes for the input, weight block (nodes), and the weight array sizes
 	int inputArrSize, weightsArrSize, totalWeightArrSize;
 
 	// Assign the input board to the output pointer so that when the for loop starts it will be put assigned the input pointer
-	outputArrPtr = &inputBoard;
-	inputArrPtr = &arrayHolder;
+	outputArrPtr = &arrayHolder1;
+	inputArrPtr = &arrayHolder0;
 	int tile = 4;
 	// Loop to go through each layer and multiply its weights by the input
 	for (int rr = 0; rr < totalWeightArrsPtr->size(); ++rr)
@@ -620,8 +621,9 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 		// Assign the output array to the input array pointer
 		swap(inputArrPtr, outputArrPtr);
 		(*outputArrPtr).clear();
-		(*outputArrPtr).resize((*(totalWeightArrsPtr))[rr].size() / (*inputArrPtr).size());
-		weightArrPtr = &((*totalWeightArrsPtr)[rr]);
+		int newSizeForOutput = (*(totalWeightArrsPtr))[rr].size() / (*inputArrPtr).size();
+		(*outputArrPtr).resize(newSizeForOutput);
+		weightArrPtr = &(*totalWeightArrsPtr)[rr];
 
 		// Assigning the sizes
 		inputArrSize = (*inputArrPtr).size();
@@ -637,41 +639,36 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 		inputIndexPtr = &(*inputArrPtr)[0];
 		outputIndexPtr = &(*outputArrPtr)[0];
 
-		// Loop to go through each index of the input
-		for (int jj = 0; jj < inputArrSize; jj += tile)
+		// Loop to go through each weight block (node) in the weights array
+		for (int ii = 0; ii < weightsArrSize; ++ii)
 		{
-			// Assign index ptr to the stating weight index for the current block (node)
-			weightIndexPtr = &(*weightArrPtr)[jj*weightsArrSize];
-			// Loop to go through each weight block (node) in the weights array
-			for (int ii = 0; ii < weightsArrSize; ii+=tile)
-			{		
-				for (int bb = jj; bb < min(jj+tile, inputArrSize); ++bb)
-				{
-					//cout << "boundary for bb is " << min(tile, inputArrSize - jj) << endl;
-					for (int aa = ii; aa < min(jj+tile, weightsArrSize); ++aa)
-					{
-						//cout << "boundary for aa is " << min(tile, weightsArrSize - ii) << endl;
-						// The arithmetic
-						*(outputIndexPtr + aa) += *(weightIndexPtr + aa) * *(inputIndexPtr + bb);
-						//cout << "outputIndexPtr[" << ii << "+" << aa << "] += " << "weightIndexPtr[" << ii << "+" << aa << "] * inputIndexPtr[" << jj + bb << "]" << endl;
-						//cout << *(outputIndexPtr + aa) << " += " << *(weightIndexPtr + aa) << " * " << *(inputIndexPtr + bb) << endl;
-					}
-				}
+			//outputIndexPtr = &(*outputArrPtr)[ii];
+			weightsSum = 0.0;
+			weightIndexPtr = &(*weightArrPtr)[0] + ii*inputArrSize;
+			// Loop to go through each index of the input
+			for (int jj = 0; jj < inputArrSize; ++jj)
+			{
+				// The arithmetic
+				weightsSum += *(weightIndexPtr + jj) * *(inputIndexPtr + jj);
 			}
+			*(outputIndexPtr + ii) = weightsSum;
 		}
+
+		//outputIndexPtr = &(*outputArrPtr)[0];
 		// Loop to go through the output array
 		for (int bb = 0; bb < weightsArrSize; ++bb)
 		{
+			outputIndexPtr = &(*outputArrPtr)[bb];
 			// Sigmoid function
-			*(outputIndexPtr + bb) = *(outputIndexPtr + bb) / (1 + abs(*(outputIndexPtr + bb)));
+			*(outputIndexPtr) = *(outputIndexPtr) / (1 + abs(*(outputIndexPtr)));
 			// Make the output 1 or 0
-			if (*(outputIndexPtr + bb) < 0.0)
+			if (*(outputIndexPtr) < 0.0)
 			{
-				*(outputIndexPtr + bb) = 0.0;
+				*(outputIndexPtr) = 0.0;
 			}
 			else
 			{
-				*(outputIndexPtr + bb) = 1.0;
+				*(outputIndexPtr ) = 1.0;
 			}
 		}
 		// End time tracking
