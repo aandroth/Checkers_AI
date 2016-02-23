@@ -63,9 +63,9 @@ struct NN
 	vector<vector<float>> weightArrays;
 };
 
-vector<vector<float>> createNeuralNetworkLayers();
-void fillNeuralNetworkWeights(vector<vector<float>>*);
-float evaluateBoard(vector<vector<float>>*, vector<float>);
+vector<vector<vector<float>>> createNeuralNetworkLayers();
+void fillNeuralNetworkWeights(vector<vector<vector<float>>>*);
+float evaluateBoard(vector<vector<vector<float>>>*, vector<float>);
 
 HANDLE  hConsole;	//For displaying colors on the console
 
@@ -202,7 +202,7 @@ int main()
 	vector<int> boardCopy;
 
 	int battleCount = 0, cacheMisses = 0, bigMisses = 0, cacheHit = 0, runCount = 0;
-	vector<vector<float>> v;
+	vector<vector<vector<float>>> v;
 	float t = 0.0, oldTimer = 0.0;
 	v = createNeuralNetworkLayers();
 	fillNeuralNetworkWeights(&v);
@@ -549,9 +549,10 @@ int main()
 	return 0;
 }
 
-vector<vector<float>> createNeuralNetworkLayers()
+vector<vector<vector<float>>> createNeuralNetworkLayers()
 {
-	vector<vector<float>> weightArrays;
+	vector<vector<vector<float>>> weightArrays;
+	vector<vector<float>> *tempVectorPtr;
 	string input, numParse = "";
 	int inputNum = 32; // The number of weights is the number of nodes multiplied by the number of inputs
 	getline(cin, input);
@@ -564,41 +565,58 @@ vector<vector<float>> createNeuralNetworkLayers()
 		}
 		else if (input[ii] == ',')
 		{
-			weightArrays.push_back(vector<float>(stoi(numParse)*inputNum));
+			tempVectorPtr = new vector < vector<float> > ;
+			for (int jj = 0; jj < stoi(numParse); ++jj)
+			{
+				(*tempVectorPtr).push_back(vector<float>(inputNum));
+			}
+			weightArrays.push_back(*tempVectorPtr);
+			cout << "Pushed back vector with " << inputNum << " values " << numParse << " times" << endl;
+			inputNum = stoi(numParse);
+			numParse = "";
+		}
+		if (ii == input.size() - 1)
+		{
+			tempVectorPtr = new vector < vector<float> >;
+			for (int jj = 0; jj < stoi(numParse); ++jj)
+			{
+				(*tempVectorPtr).push_back(vector<float>(inputNum));
+			}
+			weightArrays.push_back(*tempVectorPtr);
+			cout << "Pushed back vector with " << inputNum << " values " << numParse << " times" << endl;
 			inputNum = stoi(numParse);
 			numParse = "";
 		}
 
-		if (ii == input.size() - 1)
-		{
-			weightArrays.push_back(vector<float>(stoi(numParse)*inputNum));
-		}
 	}
 	return weightArrays;
 }
 
-void fillNeuralNetworkWeights(vector<vector<float>> *weightArrs)
+void fillNeuralNetworkWeights(vector<vector<vector<float>>> *weightArrs)
 {
 	float randVal;
 	for (int ii = 0; ii < (*weightArrs).size(); ++ii)
 	{
 		for (int jj = 0; jj < (*weightArrs)[ii].size(); ++jj)
 		{
-			randVal = (float)(std::rand() % 100 / 100.0);
-			if (randVal < -1.0)
+			for (int kk = 0; kk < (*weightArrs)[ii][jj].size(); ++kk)
 			{
-				randVal = -1.0;
+				randVal = (float)(std::rand() % 100 / 100.0 - 0.5);
+				if (randVal < -1.0)
+				{
+					randVal = -1.0;
+				}
+				else if (randVal > 1.0)
+				{
+					randVal = 1.0;
+				}
+				(*weightArrs)[ii][jj][kk] = randVal;
 			}
-			else if (randVal  > 1.0)
-			{
-				randVal = 1.0;
-			}
-			(*weightArrs)[ii][jj] = randVal;
 		}
 	}
 }
 
-float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inputBoard)
+float evaluateBoard(vector<vector<vector<float>>>* totalWeightArrsPtr, vector<float> inputBoard)
 {
 	// The timing object
 	chrono::duration<float> timer = high_resolution_clock::now() - high_resolution_clock::now();
@@ -606,29 +624,29 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 	float *inputIndexPtr, *weightIndexPtr, *outputIndexPtr, weightsSum = 0.0;
 	// Pointers to the input, weight, and output arrays
 	//shared_ptr<vector<float>> ;
-	vector<float> *inputArrPtr, *weightArrPtr, *outputArrPtr;
+	vector<float> *inputArrPtr, *outputArrPtr;
 	vector<float> arrayHolder0, arrayHolder1 = inputBoard;
+	//vector<vector<float>> *weightArrPtr;
 	// Sizes for the input, weight block (nodes), and the weight array sizes
-	int inputArrSize, weightsArrSize, totalWeightArrSize;
+	int inputArrSize, weightsArrSize, layerCount;
 
 	// Assign the input board to the output pointer so that when the for loop starts it will be put assigned the input pointer
 	outputArrPtr = &arrayHolder1;
 	inputArrPtr = &arrayHolder0;
-	int tile = 4;
+
+	layerCount = (*totalWeightArrsPtr).size();
 	// Loop to go through each layer and multiply its weights by the input
-	for (int rr = 0; rr < totalWeightArrsPtr->size(); ++rr)
+	for (int rr = 0; rr < layerCount; ++rr)
 	{
 		// Assign the output array to the input array pointer
 		swap(inputArrPtr, outputArrPtr);
 		(*outputArrPtr).clear();
-		int newSizeForOutput = (*(totalWeightArrsPtr))[rr].size() / (*inputArrPtr).size();
+		int newSizeForOutput = (*totalWeightArrsPtr)[rr].size();
 		(*outputArrPtr).resize(newSizeForOutput);
-		weightArrPtr = &(*totalWeightArrsPtr)[rr];
 
 		// Assigning the sizes
 		inputArrSize = (*inputArrPtr).size();
-		totalWeightArrSize = (*(totalWeightArrsPtr))[rr].size();
-		weightsArrSize = totalWeightArrSize / inputArrSize;
+		weightsArrSize = (*totalWeightArrsPtr)[rr].size();
 
 
 		//cout << "Layer " << rr << endl;
@@ -644,7 +662,7 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 		{
 			//outputIndexPtr = &(*outputArrPtr)[ii];
 			weightsSum = 0.0;
-			weightIndexPtr = &(*weightArrPtr)[0] + ii*inputArrSize;
+			weightIndexPtr = &(*totalWeightArrsPtr)[rr][ii][0];
 			// Loop to go through each index of the input
 			for (int jj = 0; jj < inputArrSize; ++jj)
 			{
@@ -654,22 +672,15 @@ float evaluateBoard(vector<vector<float>>* totalWeightArrsPtr, vector<float> inp
 			*(outputIndexPtr + ii) = weightsSum;
 		}
 
-		//outputIndexPtr = &(*outputArrPtr)[0];
 		// Loop to go through the output array
 		for (int bb = 0; bb < weightsArrSize; ++bb)
 		{
 			outputIndexPtr = &(*outputArrPtr)[bb];
 			// Sigmoid function
 			*(outputIndexPtr) = *(outputIndexPtr) / (1 + abs(*(outputIndexPtr)));
+
 			// Make the output 1 or 0
-			if (*(outputIndexPtr) < 0.0)
-			{
-				*(outputIndexPtr) = 0.0;
-			}
-			else
-			{
-				*(outputIndexPtr ) = 1.0;
-			}
+			*(outputIndexPtr) = int(*(outputIndexPtr)+1.0);
 		}
 		// End time tracking
 		high_resolution_clock::time_point t_end = high_resolution_clock::now();
